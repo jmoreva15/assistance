@@ -1,90 +1,42 @@
-/** Implementacion del repositorio sobre localStorage, con migracion de v1. */
-import { normalizarHora } from '../dominio/horas.js';
-import { crearRegistro } from '../dominio/registros.js';
+/** Implementacion del repositorio sobre localStorage. Sin migraciones: una sola clave. */
+import { ESTADO_VACIO } from './repositorio.js';
 
-const CLAVE = 'asistencia:v2';
-const CLAVE_V1 = 'asistencia:v1';
+const CLAVE = 'asistencia';
 const CLAVE_CLIENTE = 'asistencia:cliente';
 const MAX_BITACORA = 2000;
 
-function vacio() {
-  return {
-    version: 2,
-    formUrl: '',
-    constantes: { 'NOMBRE COMPLETO': '', DNI: '' },
-      registros: {},
-    bitacora: [],
-  };
-}
-
 /**
- * Trae los datos del formato viejo (lista de dias + lista de enviados) al nuevo
- * (registros indexados por fecha). La hora de envio se recupera de la bitacora,
- * donde cada envio dejo su linea "OK <fecha>".
+ * Borra claves de versiones anteriores del proyecto. No lee ni convierte nada:
+ * solo evita dejar datos personales olvidados en el navegador.
  */
-export function migrarV1(v1) {
-  const base = vacio();
-  const enviadosEn = {};
-  for (const linea of v1.registro || []) {
-    const m = String(linea).match(/^\[([^\]]+)\].*\bOK (\d{4}-\d{2}-\d{2})/);
-    if (m) enviadosEn[m[2]] = m[1];
+function limpiarClavesViejas() {
+  for (const clave of Object.keys(localStorage)) {
+    if (/^asistencia:v\d+$/.test(clave)) localStorage.removeItem(clave);
   }
-
-  const registros = {};
-  for (const dia of v1.dias || []) {
-    const fue = (v1.enviados || []).includes(dia.fecha);
-    registros[dia.fecha] = {
-      ...crearRegistro({
-        fecha: dia.fecha,
-        entrada: normalizarHora(dia.ingreso),
-        salida: normalizarHora(dia.salida),
-        observacion: dia.observacion || '',
-        origen: 'migrado',
-      }),
-      enviadoEn: fue ? enviadosEn[dia.fecha] || 'migrado' : null,
-    };
-  }
-
-  return {
-    ...base,
-    formUrl: v1.formUrl || '',
-    constantes: { ...base.constantes, ...v1.constantes },
-    registros,
-    bitacora: (v1.registro || []).slice(-MAX_BITACORA),
-  };
 }
 
 export function crearAlmacenLocal() {
   return {
     async leer() {
+      limpiarClavesViejas();
       const bruto = localStorage.getItem(CLAVE);
-      if (bruto) {
-        const datos = JSON.parse(bruto);
-        return {
-          ...vacio(),
-          ...datos,
-          constantes: { ...vacio().constantes, ...datos.constantes },
-                registros: datos.registros || {},
-          bitacora: Array.isArray(datos.bitacora) ? datos.bitacora : [],
-        };
-      }
-
-      const viejo = localStorage.getItem(CLAVE_V1);
-      if (viejo) {
-        const migrado = migrarV1(JSON.parse(viejo));
-        migrado.bitacora = [
-          ...migrado.bitacora,
-          `[${new Date().toISOString()}] MIGRACION ${Object.keys(migrado.registros).length} registros traidos del formato anterior`,
-        ].slice(-MAX_BITACORA);
-        localStorage.setItem(CLAVE, JSON.stringify(migrado));
-        return migrado;
-      }
-
-      return null;
+      if (!bruto) return null;
+      const datos = JSON.parse(bruto);
+      return {
+        ...ESTADO_VACIO,
+        ...datos,
+        constantes: { ...ESTADO_VACIO.constantes, ...datos.constantes },
+        enviados: datos.enviados || {},
+        bitacora: Array.isArray(datos.bitacora) ? datos.bitacora : [],
+      };
     },
 
     async escribir(estado) {
-      const limpio = { ...estado, bitacora: (estado.bitacora || []).slice(-MAX_BITACORA), guardadoEn: new Date().toISOString() };
+      const limpio = {
+        ...estado,
+        bitacora: (estado.bitacora || []).slice(-MAX_BITACORA),
+        guardadoEn: new Date().toISOString(),
+      };
       localStorage.setItem(CLAVE, JSON.stringify(limpio));
       return limpio;
     },

@@ -35,12 +35,31 @@ manda en cada peticion. Con eso el servidor:
 
 ## Donde viven los datos
 
-Todo en el `localStorage` del navegador, clave `asistencia:v2`. Si venias de la version
-anterior (`asistencia:v1`), la primera vez se **migra sola**: los dias pasan a registros y la
-hora de envio de cada uno se recupera de la bitacora.
+Todo en el `localStorage` del navegador, clave `asistencia:v3`. **Cada seccion guarda en su
+propio sitio y no se mezclan:**
 
-La unica copia fuera del navegador es la que exportes. Si borras los datos del sitio, se
-pierde.
+| Almacen | Que guarda | Cuando se borra |
+|---|---|---|
+| `configuracion` | nombre, DNI y URL del formulario | solo si lo cambias |
+| `jornada` | **solo el dia de hoy**, marcado con el reloj | al dia siguiente, si no se envio |
+| `unDia` | **un** dia suelto que se olvido marcar | al guardar otro, con «Borrar», o al enviarlo |
+| `lote` | lo que produjo la ultima generacion por intervalo | al generar otro, con «Borrar lote», o al enviarlo |
+| `enviados` | **el historial**: lo unico que se conserva para siempre | nunca |
+
+Cuando Google confirma un envio, ese dia **se mueve** al historial de `enviados` y desaparece
+de donde estaba. Es el unico traspaso entre almacenes.
+
+Por eso en la cabecera solo hay un contador, **enviados**: es el unico numero que significa
+algo a largo plazo. Lo que esta sin enviar es trabajo en curso de cada seccion y se ve dentro
+de ella.
+
+**No hay migraciones.** Hay una sola clave, `asistencia`, y ningun codigo que convierta
+formatos anteriores: si el formato de los datos cambia, se exporta antes y se importa despues.
+Las claves de versiones viejas del proyecto se borran solas para no dejar datos personales
+olvidados en el navegador.
+
+La unica copia fuera del navegador es la que exportes desde **Configuracion**. Si borras los
+datos del sitio, se pierde.
 
 ### Arquitectura
 
@@ -51,10 +70,11 @@ localStorage por una API sin rehacer la aplicacion:
 panel/src/
   datos/
     repositorio.js     la puerta de acceso: leer / escribir / idCliente / borrar
-    almacenLocal.js    implementacion sobre localStorage + migracion de v1
+    almacenLocal.js    implementacion sobre localStorage (una sola clave, sin migraciones)
+    portable.js        exportar e importar el archivo JSON
   dominio/
     horas.js           parseo, validacion y formato de horas y fechas (puro)
-    registros.js       estados, validaciones y generacion de rangos (puro)
+    registros.js       completitud, notas y generacion de lotes (puro)
     bitacora.js        lineas de bitacora y descripcion de cambios (puro)
   hooks/
     useAsistencia.js   une repositorio + dominio y expone las acciones
@@ -80,6 +100,10 @@ se marcan **con un clic**.
   preguntando «¿A que hora entraste?» con 09:00 por defecto. Al confirmar se guardan las dos
   horas: la entrada que pusiste y la salida de ese momento.
 - Una barra muestra cuanto llevas y cuanto falta para las 8 h.
+- **Lo que marcas y no envias no sobrevive al dia.** Si marcaste entrada y salida y nunca le
+  diste a enviar, al volver otro dia esas horas se descartan y «Mi jornada» arranca en cero.
+  Queda la constancia en la bitacora (`DESCARTADOS`). Lo que creaste a proposito en «Un dia» o
+  «Varios dias» **no** se descarta: existe para enviarse mas tarde.
 - Con las dos horas puestas se muestra el **intervalo registrado** (entrada, salida y cuanto
   da), aparece el textarea de observaciones y el boton **Enviar mi jornada**. El panel no
   decide por ti: solo informa lo que quedo marcado.
@@ -124,6 +148,17 @@ Nombre completo, DNI y URL del formulario: lo que se envia en todos los registro
 muestra enmascarado con un ojo para revelarlo, y la URL tiene un boton para abrir el
 formulario. Guardar queda deshabilitado si no hay cambios o si algo no es valido.
 
+Abajo, el manejo de tus datos:
+
+- **Exportar JSON** — baja todo (configuracion, historial de enviados y bitacora) como
+  `asistencia-AAAA-MM-DD.json`. Es tu unica copia fuera del navegador.
+- **Importar JSON** — reemplaza todo lo de este navegador con el archivo. Si el archivo no
+  sirve, dice por que y no toca nada.
+- **Borrar todo** — con confirmacion en el sitio. Borra tambien el historial de enviados.
+
+El mismo archivo se puede importar desde la pantalla de bienvenida cuando el navegador esta
+vacio.
+
 ### Campos de fecha y hora
 
 Se usan los pickers de Material UI (`@mui/x-date-pickers`): calendario para las fechas y
@@ -139,12 +174,17 @@ distinto, se corrige a mano en ese dia.
 
 ### Estados
 
-| Estado | Que significa |
+Que un dia este enviado **no es un estado**: es el almacen donde vive. De un registro solo
+importa si esta completo:
+
+| | Que significa |
 |---|---|
-| `PENDIENTE` | El dia existe pero no tiene horas. |
-| `INCOMPLETO` | Tiene una sola hora: falta la otra, no se puede enviar. |
-| `LISTO PARA ENVIAR` | Tiene las dos horas y ya ocurrio. |
-| `ENVIADO` | Confirmado por Google. No se puede editar ni reenviar. |
+| sin horas | Todavia no tiene ninguna hora. |
+| incompleto | Tiene una sola: falta la otra y no se puede enviar. |
+| completo | Tiene las dos y se puede enviar. |
+
+Las tablas no muestran columna de estado: en «Varios dias» todas las filas estan igual y en
+«Enviados» todas estan enviadas, asi que era ruido.
 
 ### Que se rechaza y que solo se avisa
 

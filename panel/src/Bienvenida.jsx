@@ -4,6 +4,7 @@ import {
 } from '@mui/material';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import { ESTADO_VACIO } from './datos/repositorio.js';
+import { desdeArchivo } from './datos/portable.js';
 import { normalizarHora } from './dominio/horas.js';
 
 /** Primera vez en este navegador: no hay nada en localStorage. */
@@ -34,9 +35,7 @@ export default function Bienvenida({ alEmpezar, alFallar }) {
     const lector = new FileReader();
     lector.onload = () => {
       try {
-        const objeto = JSON.parse(String(lector.result));
-        if (!objeto?.registros || typeof objeto.registros !== 'object') throw new Error('el archivo no trae "registros"');
-        alEmpezar({ ...ESTADO_VACIO, ...objeto });
+        alEmpezar(desdeArchivo(JSON.parse(String(lector.result))));
       } catch (e) {
         alFallar(`No pude importar el archivo: ${e.message}`);
       }

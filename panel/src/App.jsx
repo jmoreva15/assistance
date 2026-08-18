@@ -8,8 +8,7 @@ import InventoryIcon from '@mui/icons-material/Inventory';
 import SettingsIcon from '@mui/icons-material/Settings';
 import EventAvailableIcon from '@mui/icons-material/EventAvailable';
 import { useAsistencia } from './hooks/useAsistencia.js';
-import { hoyISO } from './dominio/horas.js';
-import { incompletosAnteriores, resumen } from './dominio/registros.js';
+
 import Bienvenida from './Bienvenida.jsx';
 import PanelRegistro from './PanelRegistro.jsx';
 import DialogoConfirmar from './DialogoConfirmar.jsx';
@@ -23,11 +22,10 @@ import SeccionConfiguracion from './secciones/SeccionConfiguracion.jsx';
 export default function App() {
   const { datos, cargando, aviso, error, trabajo, setAviso, setError, acciones } = useAsistencia();
   const [pestana, setPestana] = useState(0);
-  const [editando, setEditando] = useState(null);
+  const [editando, setEditando] = useState(null); // { registro, alGuardar }
   const [porConfirmar, setPorConfirmar] = useState(null);
 
-  const cuentas = useMemo(() => (datos ? resumen(datos.registros, hoyISO()) : null), [datos]);
-  const incompletos = useMemo(() => (datos ? incompletosAnteriores(datos.registros, hoyISO()) : []), [datos]);
+  const cuantosEnviados = useMemo(() => Object.keys(datos?.enviados || {}).length, [datos]);
 
   if (cargando) {
     return (
@@ -49,7 +47,7 @@ export default function App() {
   }
 
   // Todo envio pasa por una confirmacion: no se puede deshacer.
-  const accionesConConfirmacion = { ...acciones, enviar: (fechas) => setPorConfirmar(fechas) };
+  const accionesConConfirmacion = { ...acciones, enviar: (registros) => setPorConfirmar(registros) };
 
   return (
     <Container maxWidth="md" sx={{ py: { xs: 2, sm: 4 }, px: { xs: 1.5, sm: 3 } }}>
@@ -57,9 +55,7 @@ export default function App() {
         <Stack direction="row" spacing={1.5} alignItems="baseline" flexWrap="wrap" useFlexGap>
           <Typography variant="h5">Asistencia</Typography>
           <Box sx={{ flex: 1 }} />
-          <Chip variant="outlined" label={`${cuentas.enviados} enviados`} color={cuentas.enviados ? 'success' : 'default'} />
-          {cuentas.listos > 0 && <Chip variant="outlined" color="primary" label={`${cuentas.listos} listos`} />}
-          {cuentas.incompletos > 0 && <Chip variant="outlined" color="warning" label={`${cuentas.incompletos} incompletos`} />}
+          <Chip variant="outlined" label={`${cuantosEnviados} enviados`} color={cuantosEnviados ? 'success' : 'default'} />
         </Stack>
 
         <Tabs
@@ -72,7 +68,7 @@ export default function App() {
           <Tab icon={<ScheduleIcon sx={{ fontSize: 17 }} />} iconPosition="start" label="Mi jornada" />
           <Tab icon={<EventAvailableIcon sx={{ fontSize: 17 }} />} iconPosition="start" label="Un dia" />
           <Tab icon={<AutoAwesomeMotionIcon sx={{ fontSize: 17 }} />} iconPosition="start" label="Varios dias" />
-          <Tab icon={<InventoryIcon sx={{ fontSize: 17 }} />} iconPosition="start" label={`Enviados (${cuentas.enviados})`} />
+          <Tab icon={<InventoryIcon sx={{ fontSize: 17 }} />} iconPosition="start" label={`Enviados (${cuantosEnviados})`} />
           <Tab icon={<SettingsIcon sx={{ fontSize: 17 }} />} iconPosition="start" label="Configuracion" />
         </Tabs>
 
@@ -80,9 +76,8 @@ export default function App() {
           <SeccionMarcar
             datos={datos}
             acciones={accionesConConfirmacion}
-            incompletos={incompletos}
             enviando={!!trabajo.activo}
-            alEditar={setEditando}
+            alEditar={(registro) => setEditando({ registro, alGuardar: acciones.editarJornada })}
           />
         )}
         {pestana === 1 && <SeccionOlvidado datos={datos} acciones={accionesConConfirmacion} enviando={!!trabajo.activo} />}
@@ -91,7 +86,7 @@ export default function App() {
             datos={datos}
             acciones={accionesConConfirmacion}
             enviando={!!trabajo.activo}
-            alEditar={setEditando}
+            alEditar={(registro) => setEditando({ registro, alGuardar: (cambios) => acciones.editarDelLote(registro.fecha, cambios) })}
           />
         )}
         {pestana === 3 && <SeccionEnviados datos={datos} />}
@@ -107,10 +102,10 @@ export default function App() {
 
       <DialogoHoras
         abierto={!!editando}
-        registro={editando}
+        registro={editando?.registro}
         alCerrar={() => setEditando(null)}
         alGuardar={async (cambios) => {
-          await acciones.editarRegistro(editando.fecha, cambios);
+          await editando.alGuardar(cambios);
           setEditando(null);
         }}
       />
@@ -122,9 +117,9 @@ export default function App() {
         color="error"
         alCerrar={() => setPorConfirmar(null)}
         alConfirmar={() => {
-          const fechas = porConfirmar;
+          const registros = porConfirmar;
           setPorConfirmar(null);
-          acciones.enviar(fechas);
+          acciones.enviar(registros);
         }}
       >
         <Typography variant="body2" gutterBottom>
@@ -136,15 +131,12 @@ export default function App() {
             border: 1, borderColor: 'divider', maxHeight: 220, overflow: 'auto',
           }}
         >
-          {(porConfirmar || []).map((f) => {
-            const r = datos.registros[f];
-            return (
-              <Box key={f} sx={{ px: 1.25, py: 0.5, borderBottom: 1, borderColor: 'divider', '&:last-of-type': { borderBottom: 0 } }}>
-                {f} · {r?.entrada} → {r?.salida}
-                {r?.observacion ? ` · ${r.observacion}` : ''}
-              </Box>
-            );
-          })}
+          {(porConfirmar || []).map((r) => (
+            <Box key={r.fecha} sx={{ px: 1.25, py: 0.5, borderBottom: 1, borderColor: 'divider', '&:last-of-type': { borderBottom: 0 } }}>
+              {r.fecha} · {r.entrada} → {r.salida}
+              {r.observacion ? ` · ${r.observacion}` : ''}
+            </Box>
+          ))}
         </Box>
         <Alert severity="warning">No se puede deshacer: Google no permite borrar una respuesta enviada.</Alert>
       </DialogoConfirmar>

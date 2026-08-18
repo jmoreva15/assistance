@@ -4,7 +4,7 @@ import {
   TextField, Typography, useMediaQuery, useTheme,
 } from '@mui/material';
 import { duracionTexto, fechaCorta, minutosTrabajados } from '../dominio/horas.js';
-import { ESTADOS, estadoDe, listaDeRegistros } from '../dominio/registros.js';
+import { listaDeEnviados } from '../dominio/registros.js';
 
 const cuando = (iso) => {
   if (!iso) return '—';
@@ -18,13 +18,7 @@ export default function SeccionEnviados({ datos }) {
   const movil = useMediaQuery(useTheme().breakpoints.down('md'));
   const [filtro, setFiltro] = useState('');
 
-  const enviados = useMemo(
-    () =>
-      listaDeRegistros(datos.registros)
-        .filter((r) => estadoDe(r) === ESTADOS.ENVIADO)
-        .reverse(),
-    [datos.registros],
-  );
+  const enviados = useMemo(() => listaDeEnviados(datos.enviados).reverse(), [datos.enviados]);
 
   const visibles = filtro
     ? enviados.filter((r) => `${r.fecha} ${r.dia} ${r.observacion || ''}`.toLowerCase().includes(filtro.toLowerCase()))
@@ -84,7 +78,6 @@ export default function SeccionEnviados({ datos }) {
                     enviado {cuando(r.enviadoEn)}
                   </Typography>
                 </Box>
-                <Chip label="ENVIADO" color="success" />
               </Stack>
             </Paper>
           ))}
@@ -100,7 +93,6 @@ export default function SeccionEnviados({ datos }) {
                 <TableCell align="right">Salida</TableCell>
                 <TableCell align="right">Jornada</TableCell>
                 <TableCell>Observacion</TableCell>
-                <TableCell>Estado</TableCell>
                 <TableCell>Enviado el</TableCell>
               </TableRow>
             </TableHead>
@@ -118,9 +110,6 @@ export default function SeccionEnviados({ datos }) {
                     <Typography variant="body2" noWrap title={r.observacion}>
                       {r.observacion || <Box component="span" sx={{ color: 'text.disabled' }}>—</Box>}
                     </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Chip label="ENVIADO" color="success" />
                   </TableCell>
                   <TableCell sx={{ color: 'text.secondary', whiteSpace: 'nowrap' }}>{cuando(r.enviadoEn)}</TableCell>
                 </TableRow>

@@ -1,51 +1,58 @@
 /**
- * Reglas de negocio de los registros de asistencia. Funciones puras: no tocan
- * localStorage ni React. Un registro es:
+ * Reglas de los registros de asistencia. Funciones puras: no tocan localStorage
+ * ni React.
  *
- *   { fecha, entrada, salida, observacion, enviadoEn, origen, editadoEn }
+ * Un registro es { fecha, dia, entrada, salida, observacion }.
  *
- * Los registros viven en un objeto indexado por fecha, asi que no puede haber
- * dos del mismo dia por construccion.
+ * Los registros NO viven todos juntos: cada seccion tiene su propio almacen y no
+ * se mezclan (ver datos/repositorio.js).
+ *
+ *   jornada   el dia de hoy que se marca con el reloj
+ *   unDia     un dia suelto que se olvido marcar
+ *   lote      lo que produjo la ultima generacion por intervalo
+ *   enviados  el historial: lo unico que se conserva para siempre
  */
 import { aMinutos, diasHabilesEntre, hoyISO, minutosTrabajados, nombreDia, normalizarHora } from './horas.js';
 
-export const ESTADOS = {
-  PENDIENTE: 'pendiente',
-  INCOMPLETO: 'incompleto',
-  LISTO: 'listo',
-  ENVIADO: 'enviado',
-};
-
-export const ETIQUETA_ESTADO = {
-  pendiente: 'PENDIENTE',
-  incompleto: 'INCOMPLETO',
-  listo: 'LISTO PARA ENVIAR',
-  enviado: 'ENVIADO',
-};
-
 export const JORNADA_MINUTOS = 8 * 60;
 
-/** Horas por defecto para todo: marcar, dias olvidados y generacion masiva. */
+/** Horas por defecto para todo: dias olvidados y generacion por intervalo. */
 export const ENTRADA_POR_DEFECTO = '09:00';
 export const SALIDA_POR_DEFECTO = '18:00';
 
-export function estadoDe(registro) {
-  if (!registro) return ESTADOS.PENDIENTE;
-  if (registro.enviadoEn) return ESTADOS.ENVIADO;
-  if (registro.entrada && registro.salida) return ESTADOS.LISTO;
-  if (registro.entrada || registro.salida) return ESTADOS.INCOMPLETO;
-  return ESTADOS.PENDIENTE;
+/** Como esta de completo un registro. Que ya se envio no es un estado: es el almacen donde vive. */
+export const COMPLETITUD = {
+  VACIO: 'vacio',
+  INCOMPLETO: 'incompleto',
+  COMPLETO: 'completo',
+};
+
+export const ETIQUETA_COMPLETITUD = {
+  vacio: 'SIN HORAS',
+  incompleto: 'INCOMPLETO',
+  completo: 'COMPLETO',
+};
+
+export function completitudDe(registro) {
+  if (!registro) return COMPLETITUD.VACIO;
+  if (registro.entrada && registro.salida) return COMPLETITUD.COMPLETO;
+  if (registro.entrada || registro.salida) return COMPLETITUD.INCOMPLETO;
+  return COMPLETITUD.VACIO;
 }
 
-/** Solo se puede enviar un dia completo, no enviado y que ya haya ocurrido. */
+/** Se puede enviar si esta completo y la fecha ya ocurrio. */
 export function esEnviable(registro, hoy = hoyISO()) {
-  return estadoDe(registro) === ESTADOS.LISTO && registro.fecha <= hoy;
+  return !!registro && completitudDe(registro) === COMPLETITUD.COMPLETO && registro.fecha <= hoy;
+}
+
+/** Registro nuevo, con los campos siempre presentes. */
+export function crearRegistro({ fecha, entrada = null, salida = null, observacion = '' }) {
+  return { fecha, dia: nombreDia(fecha), entrada, salida, observacion };
 }
 
 /**
  * Lo unico que se rechaza es una hora que no se pueda entender. Cualquier hora
  * valida se acepta: el usuario decide que marca y que envia.
- * Devuelve null o el motivo del rechazo.
  */
 export function validarFormato({ entrada, salida }) {
   if (entrada && !normalizarHora(entrada)) {
@@ -57,10 +64,7 @@ export function validarFormato({ entrada, salida }) {
   return null;
 }
 
-/**
- * Observaciones sobre un par de horas, para mostrar sin bloquear nada.
- * Nunca impide guardar ni enviar: solo avisa por si fue un descuido.
- */
+/** Observaciones sobre un par de horas, para mostrar sin bloquear nada. */
 export function notaSobreHoras({ entrada, salida }) {
   const e = normalizarHora(entrada);
   const s = normalizarHora(salida);
@@ -75,50 +79,16 @@ export function notaSobreHoras({ entrada, salida }) {
   return null;
 }
 
-/** Registro nuevo, con los campos siempre presentes. */
-export function crearRegistro({ fecha, entrada = null, salida = null, observacion = '', origen = 'reloj' }) {
-  return { fecha, dia: nombreDia(fecha), entrada, salida, observacion, enviadoEn: null, origen, editadoEn: null };
-}
-
-const porFecha = (a, b) => a.fecha.localeCompare(b.fecha);
-
-export const listaDeRegistros = (registros) => Object.values(registros || {}).sort(porFecha);
-
-export const registrosPorEstado = (registros, estado) =>
-  listaDeRegistros(registros).filter((r) => estadoDe(r) === estado);
-
-/** Dias anteriores a hoy que quedaron a medias: hay que resolverlos. */
-export function incompletosAnteriores(registros, hoy = hoyISO()) {
-  return listaDeRegistros(registros).filter(
-    (r) => r.fecha < hoy && estadoDe(r) === ESTADOS.INCOMPLETO,
-  );
-}
-
-export const enviables = (registros, hoy = hoyISO()) =>
-  listaDeRegistros(registros).filter((r) => esEnviable(r, hoy));
-
-export function resumen(registros, hoy = hoyISO()) {
-  const todos = listaDeRegistros(registros);
-  return {
-    total: todos.length,
-    enviados: todos.filter((r) => estadoDe(r) === ESTADOS.ENVIADO).length,
-    listos: todos.filter((r) => estadoDe(r) === ESTADOS.LISTO && r.fecha <= hoy).length,
-    incompletos: todos.filter((r) => estadoDe(r) === ESTADOS.INCOMPLETO).length,
-    futuros: todos.filter((r) => r.fecha > hoy && estadoDe(r) !== ESTADOS.ENVIADO).length,
-  };
-}
+export const listaDeEnviados = (enviados) =>
+  Object.values(enviados || {}).sort((a, b) => a.fecha.localeCompare(b.fecha));
 
 /**
- * Genera los dias habiles del rango con las horas por defecto.
- *
- * Solo acepta dias ANTERIORES a hoy: la jornada de hoy se marca en su seccion.
- * No hay mas restricciones — el usuario genera el rango que quiera. Si un dia ya
- * existe y no fue enviado, se rehacen sus horas pero se conserva su observacion.
- * Los dias ya enviados no se tocan.
- *
- * Devuelve { generados, yaEnviados, invalido }.
+ * Genera los dias habiles del intervalo con las horas por defecto.
+ * Solo dias ANTERIORES a hoy: la jornada de hoy se marca en su seccion.
+ * Los dias que ya estan en el historial de enviados se excluyen, para no
+ * mandar dos veces la misma respuesta.
  */
-export function generarDelRango({ desde, hasta, registros, hoy = hoyISO(), maximo = 500 }) {
+export function generarLote({ desde, hasta, enviados = {}, hoy = hoyISO(), maximo = 500 }) {
   if (!desde || !hasta) return { invalido: 'elige las dos fechas del intervalo' };
   if (!/^\d{4}-\d{2}-\d{2}$/.test(desde) || !/^\d{4}-\d{2}-\d{2}$/.test(hasta)) {
     return { invalido: 'las fechas deben tener formato YYYY-MM-DD' };
@@ -134,16 +104,10 @@ export function generarDelRango({ desde, hasta, registros, hoy = hoyISO(), maxim
     return { invalido: `el intervalo tiene ${habiles.length} dias habiles, mas del maximo de ${maximo}; revisa si te equivocaste de anio` };
   }
 
-  const yaEnviados = habiles.filter((f) => registros[f]?.enviadoEn);
-  const generados = habiles
-    .filter((f) => !registros[f]?.enviadoEn)
-    .map((fecha) => {
-      const previo = registros[fecha];
-      return {
-        ...crearRegistro({ fecha, entrada: ENTRADA_POR_DEFECTO, salida: SALIDA_POR_DEFECTO, origen: 'masivo' }),
-        observacion: previo?.observacion || '',
-      };
-    });
+  const yaEnviados = habiles.filter((f) => enviados[f]);
+  const dias = habiles
+    .filter((f) => !enviados[f])
+    .map((fecha) => crearRegistro({ fecha, entrada: ENTRADA_POR_DEFECTO, salida: SALIDA_POR_DEFECTO }));
 
-  return { generados, yaEnviados };
+  return { dias, yaEnviados };
 }
