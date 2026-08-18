@@ -3,30 +3,29 @@ import {
   Alert, Box, Button, Container, Divider, Paper, Stack, TextField, Typography,
 } from '@mui/material';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
-import { VACIO, importar } from './almacen.js';
+import { ESTADO_VACIO } from './datos/repositorio.js';
+import { normalizarHora } from './dominio/horas.js';
 
 /** Primera vez en este navegador: no hay nada en localStorage. */
 export default function Bienvenida({ alEmpezar, alFallar }) {
   const [nombre, setNombre] = useState('');
   const [dni, setDni] = useState('');
   const [formUrl, setFormUrl] = useState('');
-  const [ingresoA, setIngresoA] = useState('9:00 AM');
-  const [ingresoB, setIngresoB] = useState('9:10 AM');
-  const [salidaA, setSalidaA] = useState('6:00 PM');
-  const [salidaB, setSalidaB] = useState('6:15 PM');
+  const [entrada, setEntrada] = useState('09:00');
+  const [salida, setSalida] = useState('18:00');
   const archivo = useRef(null);
 
   const dniOk = /^\d{8}$/.test(dni);
   const urlOk = /^https:\/\/docs\.google\.com\/forms\/.+/.test(formUrl.trim());
-  const listo = nombre.trim() && dniOk && urlOk;
+  const horasOk = !!normalizarHora(entrada) && !!normalizarHora(salida);
+  const listo = nombre.trim() && dniOk && urlOk && horasOk;
 
   const empezar = () =>
     alEmpezar({
-      ...VACIO,
+      ...ESTADO_VACIO,
       formUrl: formUrl.trim(),
       constantes: { 'NOMBRE COMPLETO': nombre.trim().toUpperCase(), DNI: dni },
-      rangos: { ingreso: [ingresoA, ingresoB], salida: [salidaA, salidaB] },
-      patron: { ingreso: `${ingresoA} a ${ingresoB}`, salida: `${salidaA} a ${salidaB}`, jornada: 'lunes a viernes' },
+      horario: { entrada: normalizarHora(entrada), salida: normalizarHora(salida) },
     });
 
   const subir = (evento) => {
@@ -35,7 +34,9 @@ export default function Bienvenida({ alEmpezar, alFallar }) {
     const lector = new FileReader();
     lector.onload = () => {
       try {
-        alEmpezar(importar(JSON.parse(String(lector.result))));
+        const objeto = JSON.parse(String(lector.result));
+        if (!objeto?.registros || typeof objeto.registros !== 'object') throw new Error('el archivo no trae "registros"');
+        alEmpezar({ ...ESTADO_VACIO, ...objeto });
       } catch (e) {
         alFallar(`No pude importar el archivo: ${e.message}`);
       }
@@ -84,15 +85,12 @@ export default function Bienvenida({ alEmpezar, alFallar }) {
 
           <Divider />
           <Typography variant="body2" color="text.secondary">
-            Tu horario habitual. Las horas de cada dia se generan al azar dentro de estos rangos.
+            Tu horario habitual. Se usa para generar dias en el envio masivo; siempre podes corregir un dia
+            concreto despues.
           </Typography>
           <Stack direction="row" spacing={2}>
-            <TextField label="Ingreso desde" value={ingresoA} onChange={(e) => setIngresoA(e.target.value)} fullWidth />
-            <TextField label="Ingreso hasta" value={ingresoB} onChange={(e) => setIngresoB(e.target.value)} fullWidth />
-          </Stack>
-          <Stack direction="row" spacing={2}>
-            <TextField label="Salida desde" value={salidaA} onChange={(e) => setSalidaA(e.target.value)} fullWidth />
-            <TextField label="Salida hasta" value={salidaB} onChange={(e) => setSalidaB(e.target.value)} fullWidth />
+            <TextField label="Entrada" value={entrada} onChange={(e) => setEntrada(e.target.value)} placeholder="09:00" fullWidth />
+            <TextField label="Salida" value={salida} onChange={(e) => setSalida(e.target.value)} placeholder="18:00" fullWidth />
           </Stack>
 
           <Box>

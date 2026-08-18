@@ -60,7 +60,21 @@ export const crearTema = (modo) => {
       MuiDialog: { styleOverrides: { paper: { border: `1px solid ${borde}` } } },
       MuiDialogTitle: {
         styleOverrides: {
-          root: { fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: `1px solid ${borde}` },
+          root: {
+            fontSize: '0.8125rem',
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            letterSpacing: '0.06em',
+            borderBottom: `1px solid ${borde}`,
+            padding: '14px 20px',
+          },
+        },
+      },
+      MuiDialogContent: {
+        styleOverrides: {
+          // MUI quita el padding de arriba cuando el contenido sigue a un titulo;
+          // lo devolvemos para que los campos no queden pegados al borde.
+          root: { padding: '24px 20px', '.MuiDialogTitle-root + &': { paddingTop: '24px' } },
         },
       },
       MuiDialogActions: { styleOverrides: { root: { borderTop: `1px solid ${borde}`, padding: 12 } } },

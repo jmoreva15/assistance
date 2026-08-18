@@ -3,6 +3,9 @@ import { createRoot } from 'react-dom/client';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import useMediaQuery from '@mui/material/useMediaQuery';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import 'dayjs/locale/es';
 import App from './App.jsx';
 import { crearTema } from './tema.js';
 
@@ -12,7 +15,9 @@ function Raiz() {
   return (
     <ThemeProvider theme={tema}>
       <CssBaseline />
-      <App />
+      <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="es">
+        <App />
+      </LocalizationProvider>
     </ThemeProvider>
   );
 }

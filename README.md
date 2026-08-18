@@ -35,159 +35,165 @@ manda en cada peticion. Con eso el servidor:
 
 ## Donde viven los datos
 
-Todo en el `localStorage` del navegador, bajo la clave `asistencia:v1`: nombre, DNI, patron
-de horarios, los dias, el historial de lo enviado y **tu registro de actividad** (las ultimas
-1000 lineas). Se guarda solo con cada cambio.
+Todo en el `localStorage` del navegador, clave `asistencia:v2`. Si venias de la version
+anterior (`asistencia:v1`), la primera vez se **migra sola**: los dias pasan a registros y la
+hora de envio de cada uno se recupera de la bitacora.
 
-**La unica copia fuera del navegador es la que bajas con «Descargar mis datos».** Hacelo cada
-tanto: si borras los datos del sitio, se pierde todo. Ese mismo archivo se importa desde la
-pantalla de bienvenida para volver a donde estabas, o para pasarte a otro navegador.
+La unica copia fuera del navegador es la que exportes. Si borras los datos del sitio, se
+pierde.
 
-El boton **Sincronizar** fuerza el guardado en `localStorage` en ese momento y te dice la
-hora; no manda nada a ningun servidor.
+### Arquitectura
 
-## Primera vez
+La logica de almacenamiento esta separada de los componentes, para poder cambiar
+localStorage por una API sin rehacer la aplicacion:
 
-Un navegador sin datos muestra la pantalla de bienvenida, que pide:
+```
+panel/src/
+  datos/
+    repositorio.js     la puerta de acceso: leer / escribir / idCliente / borrar
+    almacenLocal.js    implementacion sobre localStorage + migracion de v1
+  dominio/
+    horas.js           parseo, validacion y formato de horas y fechas (puro)
+    registros.js       estados, validaciones y generacion de rangos (puro)
+    bitacora.js        lineas de bitacora y descripcion de cambios (puro)
+  hooks/
+    useAsistencia.js   une repositorio + dominio y expone las acciones
+  secciones/           las cinco pantallas
+  componentes/         reloj, tarjetas de marcado, dialogos y campos de fecha/hora
+```
 
-- Nombre completo y DNI (8 digitos).
-- La URL del formulario, la que termina en `/viewform`.
-- Tu patron de horarios: rangos de ingreso y de salida. Las horas de cada dia salen al azar
-  dentro de esos rangos.
+Ningun componente toca `localStorage`: todos pasan por `useAsistencia`. Para migrar a un
+backend basta escribir otro objeto con los cuatro metodos de `repositorio.js` (ya son
+asincronos) y cambiar una linea.
 
-O directamente **Importar archivo JSON** si ya tenes tus datos exportados.
+## Las cinco secciones
 
-## Uso diario
+### 1. Mi jornada
 
-Solo se envia la asistencia de los dias **remotos**. Los **presenciales** se marcan como
-omitidos y no se envian nunca.
+La pantalla principal: el dia de hoy, un **reloj en tiempo real** y dos tarjetas grandes que
+se marcan **con un clic**.
 
-1. Abris el panel: los dias de lunes a viernes de hoy y los proximos ya estan creados.
-2. Dia presencial → boton ⊘ de esa fila. Queda `OMITIDO`.
-3. Dia remoto → lo seleccionas y le das a **Enviar**.
+- Toca **ENTRADA** al empezar: guarda la hora exacta. La tarjeta pasa a mostrar la hora y
+  deja de ser pulsable, asi que no se puede duplicar.
+- Toca **SALIDA** al terminar: guarda la hora exacta.
+- **Si te olvidaste de marcar la entrada** y tocas directamente SALIDA, se abre un modal
+  preguntando «¿A que hora entraste?» con 09:00 por defecto. Al confirmar se guardan las dos
+  horas: la entrada que pusiste y la salida de ese momento.
+- Una barra muestra cuanto llevas y cuanto falta para las 8 h.
+- Con las dos horas puestas se muestra el **intervalo registrado** (entrada, salida y cuanto
+  da), aparece el textarea de observaciones y el boton **Enviar mi jornada**. El panel no
+  decide por ti: solo informa lo que quedo marcado.
+- El lapiz corrige las horas a mano. Corregir **no** impide seguir marcando en vivo.
+- Los dias anteriores que quedaron a medias salen arriba con acceso directo para completarlos.
+
+### 2. Un dia
+
+Para cargar un dia suelto que se olvido marcar y **enviarlo ahi mismo**. Trae la fecha de
+ayer y las horas por defecto; se puede cambiar todo. Avisa si la fecha cae en fin de semana,
+bloquea las fechas futuras y los dias ya enviados, y si el dia ya existe sin enviar advierte
+que se va a reemplazar. Dos botones: **Solo guardar** (queda listo para enviarlo despues) y
+**Guardar y enviar**.
+
+### 3. Varios dias
+
+Independiente de la jornada de hoy: aca **solo se generan dias anteriores a hoy**. El
+selector de fechas no deja elegir hoy ni el futuro.
+
+La lista **empieza siempre vacia**. Se elige el intervalo que quieras, del largo que sea, y al
+darle a **Generar** se crean todos los dias de lunes a viernes con **09:00 a 18:00**, se
+guardan en `localStorage` y aparecen en la lista, ya seleccionados. Desde ahi se revisa, se
+corrige lo que haga falta y se envia todo de una vez.
+
+No hay mas validaciones: se puede generar el mismo rango otra vez y los dias se rehacen.
+Lo unico que no se toca son los **dias ya enviados**, para no duplicar respuestas en el
+formulario. Cuando un dia se rehace se conserva lo que hubieras escrito en su observacion.
+Los dias que no correspondan se corrigen o simplemente no se seleccionan al enviar.
+
+«Vaciar lista» solo limpia la vista; los dias siguen guardados.
+
+El unico tope es de 500 dias habiles por intervalo, para atajar un error de tipeo en el anio.
+
+### 4. Enviados
+
+Historial de lo confirmado por Google: fecha, dia, entrada, salida, jornada, observacion,
+estado y **fecha y hora de envio**. Con buscador y el total de horas acumuladas.
+
+### 5. Configuracion
+
+Nombre completo, DNI y URL del formulario: lo que se envia en todos los registros. El DNI se
+muestra enmascarado con un ojo para revelarlo, y la URL tiene un boton para abrir el
+formulario. Guardar queda deshabilitado si no hay cambios o si algo no es valido.
+
+### Campos de fecha y hora
+
+Se usan los pickers de Material UI (`@mui/x-date-pickers`): calendario para las fechas y
+reloj de 24 h para las horas, con los limites ya aplicados (por ejemplo, en «Varios dias» los
+dias de hoy en adelante salen deshabilitados en el calendario). Los componentes
+`CampoFecha` y `CampoHora` envuelven los pickers y hacia afuera hablan en texto
+(`YYYY-MM-DD` y `HH:MM`), asi el dominio sigue sin depender de ninguna libreria de fechas.
+
+### Horas por defecto
+
+Son fijas para todo: **09:00 a 18:00**. No hay horario configurable; si un dia concreto fue
+distinto, se corrige a mano en ese dia.
+
+### Estados
 
 | Estado | Que significa |
 |---|---|
-| `ENVIADO` | Confirmado por Google. Fila bloqueada: no se edita ni se reenvia. |
-| `PENDIENTE` | Dia remoto listo para enviar. |
-| `FUTURO` | Fecha posterior a hoy: no se puede enviar. |
-| `OMITIDO` | No se envia (tipicamente presencial). |
+| `PENDIENTE` | El dia existe pero no tiene horas. |
+| `INCOMPLETO` | Tiene una sola hora: falta la otra, no se puede enviar. |
+| `LISTO PARA ENVIAR` | Tiene las dos horas y ya ocurrio. |
+| `ENVIADO` | Confirmado por Google. No se puede editar ni reenviar. |
 
-### Como se generan los dias
+### Que se rechaza y que solo se avisa
 
-Al abrir el panel se crean los dias de **lunes a viernes** que falten, con esta regla:
+**El panel no decide cuando marcas ni que horas pones.** Lo unico que rechaza es una hora
+que no se pueda entender:
 
-```
-desde = el dia siguiente a tu ULTIMO ENVIADO   (si nunca enviaste nada: hoy)
-hasta = hoy + diasPorAdelantado (5)
-```
+- `abc` o `25:00` → error, no se guarda.
+- Formatos aceptados: `09:20`, `9:20`, `9:20 AM`, `6:25 PM`, `18:25`.
 
-O sea: se cubre todo el hueco desde donde quedaste hasta hoy, mas unos dias por adelantado.
-Los dias hasta hoy quedan `PENDIENTE`; los posteriores, `FUTURO`.
+Todo lo demas se acepta y, si parece un descuido, **solo se avisa sin bloquear**:
 
-**Ejemplo.** Tu ultimo envio fue el 7 de diciembre y entras el 20:
+- Entrada y salida a la misma hora.
+- Salida anterior a la entrada (se cuenta como jornada que cruza la medianoche).
+- Jornadas de mas de 14 h o de menos de 1 h.
 
-| Se generan | Estado |
-|---|---|
-| 8, 9, 10, 11, 12, 15, 16, 17, 18, 19 de diciembre | `PENDIENTE` |
-| 22, 23, 24, 25 de diciembre | `FUTURO` |
+Antes de enviar, el modal de confirmacion muestra **exactamente** lo que va a salir (fecha,
+entrada, salida y observacion de cada registro) para que decidas. Si algo no cuadra, se
+cancela y se corrige con el lapiz.
 
-Los fines de semana se saltan y los dias que ya estan en la lista no se duplican.
-
-Ojo con la consecuencia: si pasaste mucho tiempo sin enviar, al abrir el panel se van a
-generar todos esos dias de una vez. Los que no correspondan se marcan con ⊘.
-
-**No sabe de feriados.** Genera lunes a viernes y nada mas; los feriados los marcas vos con ⊘.
-
-Los dias **no se pueden eliminar**: la lista es el historial de tu jornada y borrar un dia solo
-lo haria reaparecer en la siguiente generacion. Lo que no corresponde se omite, no se borra.
-
-### El modal de edicion
-
-Dos campos que se confunden facil:
-
-- **Observacion** → se envia en el campo OBSERVACION del formulario.
-- **Motivo** → nota interna tuya, **nunca se envia**.
-
-### Mi registro
-
-Panel fijo al pie con **tu** registro, siempre visible, guardado en tu localStorage (ultimas
-2000 lineas). Tiene filtro por texto y un boton para vaciarlo.
-
-**Queda registrada cada accion**, no solo los envios:
-
-| Linea | Cuando aparece |
-|---|---|
-| `DIAS GENERADOS` | Se crearon dias, con el motivo y el detalle de pendientes y futuros |
-| `CAMBIO` | Editaste un dia: dice que cambio, campo por campo (`ingreso de 9:21 AM a 9:45 AM`) |
-| `DATOS` | Cambiaste nombre o DNI (el DNI se registra solo por sus 4 ultimos digitos) |
-| `ENVIO SOLICITADO` | Pediste un envio, con los dias y horarios exactos |
-| `OK` | Google confirmo un dia (viene del servidor) |
-| `CONFIRMADOS` / `SIN CONFIRMAR` | Resumen al terminar: cuantos entraron y cuales quedaron pendientes |
-| `FALLO` / `ERROR` | Algo salio mal, con el motivo concreto y la captura si la hay |
-| `GUARDADO` | Le diste a Sincronizar |
-| `REGISTRO VACIADO` | Vaciaste el registro, y cuantas lineas se borraron |
-
-Los colores ayudan a barrerlo: verde lo confirmado, rojo los fallos, ambar los cambios,
-azul lo administrativo.
-
-### Errores
-
-Todo error dice **que** paso, **por que** y **donde arreglarlo**. Ejemplos reales:
-
-```
-el DNI debe ser 8 digitos y llego "3 caracter(es)"; corregilo en «Tus datos»
-faltan horas obligatorias en 2 dia(s): 2026-08-17 (sin ingreso y sin salida); 2026-08-18 (sin salida)
-no se puede registrar asistencia de dias que todavia no ocurrieron (hoy es 2026-08-18): 2026-08-20
-la URL del formulario tiene que empezar con https://docs.google.com/forms/ y terminar en /viewform, pero llego "..."
-el formulario pide permiso para verse. La URL no es publica o es de otra cuenta; abrila en
-  una ventana privada para comprobarlo
-los campos se llenaron bien, pero tras apretar Enviar no aparecio la pantalla de confirmacion.
-  La pagina decia: "..."
-```
-
-Cada error se muestra en pantalla **y** queda en el registro con su contexto, asi que
-despues se puede reconstruir que paso.
+Lo que si se impide, para no ensuciar el formulario: enviar un dia futuro, uno incompleto o
+uno ya enviado.
 
 ## Movil
 
-El panel funciona en telefono:
+Probado a 375x812, sin desborde horizontal:
 
-- La tabla de 9 columnas se convierte en **tarjetas** por debajo de 900 px de ancho: fecha,
-  dia, horario, estado y las mismas tres acciones.
-- La franja de totales se reparte en dos filas; los campos de «Tus datos» y los botones se
-  apilan.
-- Los modales (editar dia, confirmar envio) se abren a **pantalla completa**.
-- El registro reduce su alto y apila el filtro.
+- Las tablas se convierten en **tarjetas** por debajo de 900 px.
+- El reloj y las horas marcadas reducen su tamano pero siguen siendo el elemento dominante.
+- Los dialogos (corregir horas, confirmar envio) se abren a **pantalla completa**.
+- La bitacora reduce su alto y apila el filtro.
 
-Probado a 375x812: sin desborde horizontal.
+## Validaciones del servidor
 
-## Validaciones y candados
-
-En el panel y otra vez en el servidor, para que no pase nada raro:
+Ademas de las del panel, el servidor vuelve a validar todo lo que llega:
 
 - Nombre no vacio y DNI de 8 digitos.
 - La URL tiene que ser de Formularios de Google.
 - No se envian dias futuros ni dias sin horas.
-- Un dia ya enviado no se puede editar ni reenviar.
-- Ningun dia se puede eliminar: solo omitir.
-- Solo un envio a la vez.
+- Un envio a la vez por cliente, y como maximo 3 simultaneos en todo el servidor.
 
-## Estructura
+## Estructura del proyecto
 
 ```
-panel/src/        panel React (Material UI)
-  almacen.js        localStorage: leer, guardar, ventana de dias, exportar, importar
-  App.jsx           pantalla principal
-  Bienvenida.jsx    configuracion inicial e importacion
-  TablaDias.jsx     tabla y acciones por fila
-  DialogoDia.jsx    edicion de un dia
-  PanelRegistro.jsx registro siempre visible
-servidor/api.js   3 rutas: /api/enviar, /api/trabajo, /api/registro
+panel/src/          panel React (Material UI) — ver «Arquitectura» arriba
+servidor/api.js     2 rutas: POST /api/enviar y GET /api/trabajo?cliente=x
 src/
-  lote.js           recorre los dias y los envia
-  formulario.js     lee y llena los campos del Formulario de Google
-  navegador.js      Chromium efimero via Playwright
+  lote.js             recorre los registros del envio y los manda
+  formulario.js       lee y llena los campos del Formulario de Google
+  navegador.js        Chromium efimero via Playwright
 ```
 
 ## Desplegar
