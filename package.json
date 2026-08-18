@@ -1,0 +1,25 @@
+{
+  "name": "asistencia",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Panel para registrar asistencia en un Formulario de Google. Los datos viven en el navegador (localStorage).",
+  "scripts": {
+    "build": "vite build panel",
+    "start": "node servidor/api.js",
+    "dev": "vite panel"
+  },
+  "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/icons-material": "^6.5.0",
+    "@mui/material": "^6.5.0",
+    "playwright": "^1.49.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.7.0",
+    "vite": "^6.4.3"
+  }
+}
