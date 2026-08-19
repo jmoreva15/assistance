@@ -106,6 +106,7 @@ app/
   api/profile/route.js    el nombre completo
   api/submissions/route.js enviar al formulario y registrar lo confirmado
   api/activity/route.js   leer y escribir la bitácora
+  api/form/route.js       las preguntas del formulario, para la vista previa
 
 lib/
   domain/                 reglas puras, sin dependencias
@@ -125,6 +126,7 @@ lib/
   api/                    servicios que usan las rutas (nunca la UI)
     session-service.js      sesión, perfil y carga del espacio de trabajo
     activity-service.js     bitácora
+    form-service.js         describe el formulario y lo cachea
     submission-service.js  el envío completo, de principio a fin
   client/                 lo que corre en el navegador
     api-client.js           llamadas a /api
@@ -196,7 +198,12 @@ El día de hoy, un reloj en tiempo real y dos tarjetas grandes que se marcan con
   pregunta a qué hora entraste (09:00 por defecto) y guarda las dos.
 - Una barra muestra cuánto llevas y cuánto falta para las 8 h.
 - Con las dos horas se muestra el intervalo registrado, el campo de observación y el botón de
-  enviar. La pantalla informa, no decide.
+  registrar. La pantalla informa, no decide.
+- Abajo aparece **«Lo que se va a enviar»**: los seis campos con el nombre real de cada
+  pregunta de tu formulario y el valor exacto que va a llegar, incluidos tu nombre y tu DNI. Los
+  títulos no están escritos en el código: se leen del formulario (`GET /api/form`, con caché de
+  5 minutos), así que si cambias una pregunta, la vista previa lo refleja. Si algún campo no se
+  puede emparejar, avisa ahí mismo en vez de fallar al enviar.
 - **Las horas se corrigen ahí mismo**: se toca la hora marcada y se edita en el sitio, sin
   abrir nada. Corregir no impide seguir marcando en vivo.
 - **Si marcaste y nunca enviaste, al día siguiente se descarta** y la pantalla arranca en cero.

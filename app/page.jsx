@@ -22,7 +22,7 @@ import { MONO } from '../lib/theme/theme.js';
 
 export default function Page() {
   const attendance = useAttendance();
-  const { workspace, drafts, loading, busy, notice, error, setNotice, setError, today, todayDraft, todaySubmission, submittedDates, actions } = attendance;
+  const { workspace, form, drafts, loading, busy, notice, error, setNotice, setError, today, todayDraft, todaySubmission, submittedDates, actions } = attendance;
   const [tab, setTab] = useState(0);
   const [pending, setPending] = useState(null);
 
@@ -80,6 +80,8 @@ export default function Page() {
           <TodayPanel
             draft={todayDraft}
             submitted={todaySubmission}
+            profile={workspace.user}
+            form={form}
             busy={busy}
             actions={actions}
             onSubmit={askSubmit}

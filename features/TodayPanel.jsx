@@ -10,11 +10,12 @@ import SendIcon from '@mui/icons-material/Send';
 import Clock from '../components/Clock.jsx';
 import PunchCard from '../components/PunchCard.jsx';
 import MissingClockInDialog from '../components/MissingClockInDialog.jsx';
+import SubmissionPreview from '../components/SubmissionPreview.jsx';
 import { COMPLETENESS, FULL_DAY_MINUTES, completenessOf, timeNotice } from '../lib/domain/records.js';
 import { formatDuration, workedMinutes } from '../lib/domain/time.js';
 import { MONO } from '../lib/theme/theme.js';
 
-export default function TodayPanel({ draft, submitted, busy, actions, onSubmit }) {
+export default function TodayPanel({ draft, submitted, profile, form, busy, actions, onSubmit }) {
   const record = submitted ?? draft ?? null;
   const locked = !!submitted;
   const completeness = completenessOf(record);
@@ -132,6 +133,8 @@ export default function TodayPanel({ draft, submitted, busy, actions, onSubmit }
                 minRows={2}
                 fullWidth
               />
+
+              <SubmissionPreview profile={profile} record={{ ...record, note }} form={form} />
 
               <Button
                 variant="contained"
