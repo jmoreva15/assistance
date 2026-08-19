@@ -22,7 +22,7 @@ import { MONO } from '../lib/theme/theme.js';
 
 export default function Page() {
   const attendance = useAttendance();
-  const { workspace, loading, busy, notice, error, setNotice, setError, today, todayDraft, todaySubmission, submittedDates, actions } = attendance;
+  const { workspace, drafts, loading, busy, notice, error, setNotice, setError, today, todayDraft, todaySubmission, submittedDates, actions } = attendance;
   const [tab, setTab] = useState(0);
   const [pending, setPending] = useState(null);
 
@@ -91,7 +91,7 @@ export default function Page() {
         {tab === 2 && (
           <BulkPanel
             today={today}
-            draft={workspace.drafts.bulk}
+            draft={drafts.bulk}
             submittedDates={submittedDates}
             busy={busy}
             actions={{ ...actions, showError: setError }}

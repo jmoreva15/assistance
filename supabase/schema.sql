@@ -25,15 +25,6 @@ create table if not exists public.submissions (
 
 create index if not exists submissions_user_date_idx on public.submissions (user_id, work_date desc);
 
-create table if not exists public.drafts (
-  user_id uuid not null references public.users (id) on delete cascade,
-  kind text not null,
-  payload jsonb not null,
-  updated_at timestamptz not null default now(),
-  constraint drafts_kind_valid check (kind in ('today', 'bulk')),
-  constraint drafts_pk primary key (user_id, kind)
-);
-
 create table if not exists public.activity_log (
   id bigint generated always as identity primary key,
   user_id uuid not null references public.users (id) on delete cascade,
@@ -46,15 +37,12 @@ create index if not exists activity_log_user_idx on public.activity_log (user_id
 
 alter table public.users enable row level security;
 alter table public.submissions enable row level security;
-alter table public.drafts enable row level security;
 alter table public.activity_log enable row level security;
 
 drop policy if exists users_no_public_access on public.users;
 drop policy if exists submissions_no_public_access on public.submissions;
-drop policy if exists drafts_no_public_access on public.drafts;
 drop policy if exists activity_log_no_public_access on public.activity_log;
 
 create policy users_no_public_access on public.users for all to anon, authenticated using (false);
 create policy submissions_no_public_access on public.submissions for all to anon, authenticated using (false);
-create policy drafts_no_public_access on public.drafts for all to anon, authenticated using (false);
 create policy activity_log_no_public_access on public.activity_log for all to anon, authenticated using (false);

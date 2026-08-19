@@ -3,9 +3,18 @@
 import { useMemo, useState } from 'react';
 import {
   Box, Chip, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField,
-  Typography, useMediaQuery, useTheme,
+  Tooltip, Typography, useMediaQuery, useTheme,
 } from '@mui/material';
+import { SOURCE_DESCRIPTION, SOURCE_LABEL } from '../lib/domain/records.js';
 import { formatDateTime, formatDuration, formatShortDate, workedMinutes } from '../lib/domain/time.js';
+
+const SOURCE_COLOR = { today: 'primary', single: 'warning', bulk: 'default' };
+
+const SourceChip = ({ source }) => (
+  <Tooltip title={SOURCE_DESCRIPTION[source] ?? ''}>
+    <Chip label={SOURCE_LABEL[source] ?? source} color={SOURCE_COLOR[source] ?? 'default'} variant="outlined" />
+  </Tooltip>
+);
 
 export default function SubmittedPanel({ submissions }) {
   const mobile = useMediaQuery(useTheme().breakpoints.down('md'));
@@ -13,7 +22,9 @@ export default function SubmittedPanel({ submissions }) {
 
   const rows = useMemo(() => [...submissions].reverse(), [submissions]);
   const visible = filter
-    ? rows.filter((row) => `${row.date} ${row.weekday} ${row.note}`.toLowerCase().includes(filter.toLowerCase()))
+    ? rows.filter((row) =>
+        `${row.date} ${row.weekday} ${row.note} ${SOURCE_LABEL[row.source] ?? ''}`.toLowerCase().includes(filter.toLowerCase()),
+      )
     : rows;
   const totalMinutes = rows.reduce((sum, row) => sum + (workedMinutes(row.clockIn, row.clockOut) ?? 0), 0);
 
@@ -62,9 +73,12 @@ export default function SubmittedPanel({ submissions }) {
                   {row.note}
                 </Typography>
               )}
-              <Typography variant="caption" color="text.secondary">
-                enviado {formatDateTime(row.submittedAt)}
-              </Typography>
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.5 }}>
+                <SourceChip source={row.source} />
+                <Typography variant="caption" color="text.secondary">
+                  enviado {formatDateTime(row.submittedAt)}
+                </Typography>
+              </Stack>
             </Paper>
           ))}
         </Stack>
@@ -79,6 +93,7 @@ export default function SubmittedPanel({ submissions }) {
                 <TableCell align="right">Salida</TableCell>
                 <TableCell align="right">Jornada</TableCell>
                 <TableCell>Observacion</TableCell>
+                <TableCell>Origen</TableCell>
                 <TableCell>Enviado el</TableCell>
               </TableRow>
             </TableHead>
@@ -98,6 +113,9 @@ export default function SubmittedPanel({ submissions }) {
                     <Typography variant="body2" noWrap title={row.note}>
                       {row.note || <Box component="span" sx={{ color: 'text.disabled' }}>—</Box>}
                     </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <SourceChip source={row.source} />
                   </TableCell>
                   <TableCell sx={{ color: 'text.secondary', whiteSpace: 'nowrap' }}>
                     {formatDateTime(row.submittedAt)}

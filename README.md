@@ -104,8 +104,8 @@ app/
   page.jsx                pantalla principal con las cinco pestañas
   api/session/route.js    abrir o retomar sesión, y leer el espacio de trabajo
   api/profile/route.js    el nombre completo
-  api/drafts/route.js     guardar o borrar el borrador de una sección
   api/submissions/route.js enviar al formulario y registrar lo confirmado
+  api/activity/route.js   leer y escribir la bitácora
 
 lib/
   domain/                 reglas puras, sin dependencias
@@ -124,11 +124,12 @@ lib/
     local-file-driver.js    implementación de desarrollo, sobre .data/store.json
   api/                    servicios que usan las rutas (nunca la UI)
     session-service.js      sesión, perfil y carga del espacio de trabajo
-    draft-service.js        borradores
+    activity-service.js     bitácora
     submission-service.js  el envío completo, de principio a fin
   client/                 lo que corre en el navegador
     api-client.js           llamadas a /api
     session-storage.js      recuerda el id de sesión en este dispositivo
+    draft-storage.js        los borradores de «Mi jornada» y «Varios días»
     use-attendance.js       estado y acciones para la UI
   theme/                  tema de Material UI
     tokens.js               colores y medidas
@@ -149,7 +150,7 @@ Reglas que se respetan en todo el proyecto:
 
 ## La base de datos
 
-Cuatro tablas. Lo único que se acumula son los envíos; el resto es trabajo en curso.
+Tres tablas. Los borradores no están acá: viven en el navegador.
 
 ### `users`
 
@@ -175,18 +176,6 @@ El historial. Solo se escribe cuando Google confirma.
 | `note` | text | la observación que fue al formulario |
 | `source` | text | de dónde salió: `today`, `single` o `bulk` |
 | `submitted_at` | timestamptz | cuándo lo confirmó Google |
-
-### `drafts`
-
-Lo que cada sección tiene a medias. Una fila por usuario y por tipo, así que las secciones no
-se mezclan: guardar en una no toca a las otras.
-
-| Columna | Tipo | Notas |
-|---|---|---|
-| `user_id` | uuid | referencia a `users` |
-| `kind` | text | `today` o `bulk`; junto a `user_id` forma la clave primaria |
-| `payload` | jsonb | el borrador tal cual lo usa la pantalla |
-| `updated_at` | timestamptz | |
 
 ### `activity_log`
 
