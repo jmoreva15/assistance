@@ -63,9 +63,11 @@ Nunca se queda trabada.
 
 Ten presente que consultar el DNI significa **enviarlo a ese servicio de terceros**.
 
-Si esas variables faltan, la aplicación arranca igual con un almacenamiento **en memoria**
-para desarrollo: funciona todo, pero los datos se pierden al reiniciar el servidor. La pestaña
-Configuración avisa cuál de los dos está activo.
+Si esas variables faltan, la aplicación arranca igual guardando en un **archivo local**
+(`.data/store.json`) para desarrollo: funciona todo y **sobrevive a reiniciar el servidor**.
+La pestaña Configuración avisa cuál de los dos está activo. Ese archivo está en `.gitignore`;
+si el disco es de solo lectura (por ejemplo en un despliegue), el driver sigue en memoria sin
+romperse, pero ahí lo que corresponde es tener Supabase configurado.
 
 ## Cómo funciona el envío
 
@@ -119,7 +121,7 @@ lib/
   data/                   persistencia detrás de un solo puerto
     repository.js           elige la implementación
     supabase-driver.js      implementación real
-    memory-driver.js        implementación de desarrollo
+    local-file-driver.js    implementación de desarrollo, sobre .data/store.json
   api/                    servicios que usan las rutas (nunca la UI)
     session-service.js      sesión, perfil y carga del espacio de trabajo
     draft-service.js        borradores
@@ -171,7 +173,7 @@ El historial. Solo se escribe cuando Google confirma.
 | `work_date` | date | **único por usuario**: imposible enviar dos veces el mismo día |
 | `clock_in` / `clock_out` | time | |
 | `note` | text | la observación que fue al formulario |
-| `source` | text | `today`, `single` o `bulk` |
+| `source` | text | de dónde salió: `today`, `single` o `bulk` |
 | `submitted_at` | timestamptz | cuándo lo confirmó Google |
 
 ### `drafts`
@@ -182,7 +184,7 @@ se mezclan: guardar en una no toca a las otras.
 | Columna | Tipo | Notas |
 |---|---|---|
 | `user_id` | uuid | referencia a `users` |
-| `kind` | text | `today`, `single` o `bulk`; junto a `user_id` forma la clave primaria |
+| `kind` | text | `today` o `bulk`; junto a `user_id` forma la clave primaria |
 | `payload` | jsonb | el borrador tal cual lo usa la pantalla |
 | `updated_at` | timestamptz | |
 
@@ -206,22 +208,31 @@ El día de hoy, un reloj en tiempo real y dos tarjetas grandes que se marcan con
 - Una barra muestra cuánto llevas y cuánto falta para las 8 h.
 - Con las dos horas se muestra el intervalo registrado, el campo de observación y el botón de
   enviar. La pantalla informa, no decide.
-- El lápiz corrige las horas a mano; corregir no impide seguir marcando en vivo.
+- **Las horas se corrigen ahí mismo**: se toca la hora marcada y se edita en el sitio, sin
+  abrir nada. Corregir no impide seguir marcando en vivo.
 - **Si marcaste y nunca enviaste, al día siguiente se descarta** y la pantalla arranca en cero.
   Queda anotado en la bitácora. Lo de «Un día» y «Varios días» no se descarta.
 
 ### 2. Un día
 
 Para un día suelto que se te olvidó marcar. Trae ayer y 09:00 a 18:00; se puede cambiar todo.
-Avisa si cae en fin de semana, bloquea fechas futuras y días ya enviados. **Solo guardar** lo
-deja para después; **Guardar y enviar** lo manda en el momento.
+Avisa si cae en fin de semana, bloquea fechas futuras y días ya enviados.
+
+**No se guarda nada: se envía y listo.** Un día suelto no necesita quedar a medias, así que
+esta pestaña no tiene borrador ni almacén propio.
 
 ### 3. Varios días
 
 Se elige solo un intervalo, del largo que sea, y **solo fechas anteriores a hoy**: el
 calendario no permite hoy ni el futuro. Al generar se crean todos los días de lunes a viernes
 con 09:00 a 18:00 y se reemplaza el lote anterior. Los días que ya están en el historial se
-excluyen para no enviar dos veces lo mismo. Cada día se puede corregir antes de enviar.
+excluyen para no enviar dos veces lo mismo.
+
+**Cada día se edita en la propia fila**: las horas son campos editables en el sitio y se
+guardan al cambiarlas, sin abrir ventanas. La observación es lo único que abre un cuadro
+pequeño, porque es texto largo. Funciona igual en tabla (escritorio) y en tarjetas (móvil).
+
+Botones: **Seleccionar todos**, **Borrar** (descarta el lote) y **Enviar**.
 
 ### 4. Enviados
 
@@ -245,6 +256,10 @@ modal muestra exactamente lo que va a salir.
 
 Lo que sí se impide, para no ensuciar el formulario: enviar un día futuro, uno incompleto o
 uno que ya está en el historial.
+
+Los únicos cuadros que se abren en toda la aplicación son tres: la confirmación antes de
+enviar, la pregunta por la hora de entrada cuando marcaste solo la salida, y la observación de
+un día del lote. Todo lo demás se edita en el sitio.
 
 ## Móvil
 
@@ -273,6 +288,11 @@ La pantalla de inicio pide **solo el DNI**.
 
 El nombre se puede corregir después en Configuración. El navegador solo recuerda el id de la
 sesión (`asistencia:user` en `localStorage`); todos los datos están en la base.
+
+**Si esa sesión ya no existe** en la base, cualquier petición responde `401` con el código
+`SESSION_GONE`. La aplicación no se queda trabada: borra la sesión local, vuelve a la pantalla
+del DNI y muestra *«tu sesión se cerró: entra otra vez con tu DNI»*. Pasa, por ejemplo, si se
+vacía la base o si cambiaste de proyecto de Supabase.
 
 ## Sobre la seguridad
 

@@ -103,7 +103,7 @@ export default function SettingsPanel({ user, formUrl, storage, busy, actions })
             <Alert severity={storage === 'supabase' ? 'success' : 'warning'} sx={{ flex: 1 }}>
               {storage === 'supabase'
                 ? 'Conectado a Supabase.'
-                : 'Sin Supabase configurado: los datos viven en memoria y se pierden al reiniciar el servidor.'}
+                : 'Sin Supabase configurado: los datos se guardan en un archivo local, solo para desarrollo.'}
             </Alert>
             <Button startIcon={<LogoutIcon />} onClick={actions.signOut}>
               Cerrar sesion

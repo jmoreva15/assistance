@@ -11,7 +11,6 @@ import ScheduleIcon from '@mui/icons-material/Schedule';
 import SettingsIcon from '@mui/icons-material/Settings';
 import ActivityLog from '../components/ActivityLog.jsx';
 import ConfirmDialog from '../components/ConfirmDialog.jsx';
-import EditDayDialog from '../components/EditDayDialog.jsx';
 import BulkPanel from '../features/BulkPanel.jsx';
 import SettingsPanel from '../features/SettingsPanel.jsx';
 import SignIn from '../features/SignIn.jsx';
@@ -25,7 +24,6 @@ export default function Page() {
   const attendance = useAttendance();
   const { workspace, loading, busy, notice, error, setNotice, setError, today, todayDraft, todaySubmission, submittedDates, actions } = attendance;
   const [tab, setTab] = useState(0);
-  const [editing, setEditing] = useState(null);
   const [pending, setPending] = useState(null);
 
   const submittedCount = workspace.submissions.length;
@@ -82,24 +80,15 @@ export default function Page() {
 
         {tab === 0 && (
           <TodayPanel
-            today={today}
             draft={todayDraft}
             submitted={todaySubmission}
             busy={busy}
             actions={actions}
-            onEdit={(record) => setEditing({ record, save: actions.editToday })}
             onSubmit={askSubmit}
           />
         )}
         {tab === 1 && (
-          <SingleDayPanel
-            today={today}
-            draft={workspace.drafts.single}
-            submittedDates={submittedDates}
-            busy={busy}
-            actions={actions}
-            onSubmit={askSubmit}
-          />
+          <SingleDayPanel today={today} submittedDates={submittedDates} busy={busy} onSubmit={askSubmit} />
         )}
         {tab === 2 && (
           <BulkPanel
@@ -108,7 +97,6 @@ export default function Page() {
             submittedDates={submittedDates}
             busy={busy}
             actions={{ ...actions, showError: setError }}
-            onEdit={(record) => setEditing({ record, save: (changes) => actions.editBatchDay(record.date, changes) })}
             onSubmit={askSubmit}
           />
         )}
@@ -130,16 +118,6 @@ export default function Page() {
           Cada seccion guarda su propio borrador. Lo unico que se acumula son los enviados.
         </Typography>
       </Stack>
-
-      <EditDayDialog
-        open={!!editing}
-        record={editing?.record}
-        onClose={() => setEditing(null)}
-        onSave={async (changes) => {
-          await editing.save(changes);
-          setEditing(null);
-        }}
-      />
 
       <ConfirmDialog
         open={!!pending}

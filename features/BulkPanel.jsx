@@ -2,27 +2,28 @@
 
 import { useState } from 'react';
 import {
-  Alert, Box, Button, Card, CardContent, Checkbox, IconButton, Paper, Stack, Table, TableBody, TableCell,
-  TableContainer, TableHead, TableRow, Tooltip, Typography, useMediaQuery, useTheme,
+  Alert, Box, Button, Card, CardContent, Checkbox, Paper, Stack, Table, TableBody, TableCell,
+  TableContainer, TableHead, TableRow, Typography, useMediaQuery, useTheme,
 } from '@mui/material';
 import AutoAwesomeMotionIcon from '@mui/icons-material/AutoAwesomeMotion';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import DoneAllIcon from '@mui/icons-material/DoneAll';
-import EditIcon from '@mui/icons-material/Edit';
+import NotesIcon from '@mui/icons-material/Notes';
 import SendIcon from '@mui/icons-material/Send';
-import { DateField } from '../components/fields.jsx';
+import { DateField, InlineTime } from '../components/fields.jsx';
+import ObservationDialog from '../components/ObservationDialog.jsx';
 import { DEFAULT_CLOCK_IN, DEFAULT_CLOCK_OUT, buildBatch, isSubmittable } from '../lib/domain/records.js';
 import { addDays, formatDuration, formatShortDate, weekdaysBetween, workedMinutes } from '../lib/domain/time.js';
 
-export default function BulkPanel({ today, draft, submittedDates, busy, actions, onEdit, onSubmit }) {
+export default function BulkPanel({ today, draft, submittedDates, busy, actions, onSubmit }) {
   const yesterday = addDays(today, -1);
   const mobile = useMediaQuery(useTheme().breakpoints.down('md'));
   const [from, setFrom] = useState(() => addDays(yesterday, -6));
   const [to, setTo] = useState(yesterday);
   const [selected, setSelected] = useState(() => new Set());
+  const [noteFor, setNoteFor] = useState(null);
 
   const rangeOk = from && to && from <= to && to <= yesterday;
-  const weekdayCount = rangeOk ? weekdaysBetween(from, to).length : 0;
 
   const generate = async () => {
     const { records, alreadySubmitted, error } = buildBatch({ from, to, submittedDates, today });
@@ -47,13 +48,26 @@ export default function BulkPanel({ today, draft, submittedDates, busy, actions,
   const allowedDates = rows.filter((row) => row.allowed).map((row) => row.record.date);
   const chosen = rows.filter((row) => selected.has(row.record.date)).map((row) => row.record);
 
+  const NoteButton = ({ record }) => (
+    <Button
+      size="small"
+      startIcon={record.note ? null : <NotesIcon sx={{ fontSize: 14 }} />}
+      onClick={() => setNoteFor(record)}
+      sx={{ justifyContent: 'flex-start', maxWidth: 190, textAlign: 'left' }}
+    >
+      <Box component="span" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {record.note || 'observacion'}
+      </Box>
+    </Button>
+  );
+
   return (
     <Stack spacing={2.5}>
       <Card variant="outlined">
         <CardContent>
           <Stack direction="row" spacing={1} alignItems="center">
             <AutoAwesomeMotionIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
-            <Typography variant="h6">Generar varios dias</Typography>
+            <Typography variant="h6">Se me olvido varios dias</Typography>
           </Stack>
           <Typography variant="caption" color="text.secondary">
             Dias de lunes a viernes con {DEFAULT_CLOCK_IN} a {DEFAULT_CLOCK_OUT}. Solo fechas anteriores a hoy.
@@ -61,19 +75,12 @@ export default function BulkPanel({ today, draft, submittedDates, busy, actions,
 
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mt: 3 }} alignItems={{ sm: 'flex-start' }}>
             <DateField label="Desde" value={from} onChange={setFrom} max={yesterday} />
-            <DateField
-              label="Hasta"
-              value={to}
-              onChange={setTo}
-              max={yesterday}
-              min={from}
-              help={rangeOk ? `${weekdayCount} dia(s) de lunes a viernes` : ' '}
-            />
+            <DateField label="Hasta" value={to} onChange={setTo} max={yesterday} min={from} />
             <Button
               variant="contained"
               startIcon={<AutoAwesomeMotionIcon />}
               onClick={generate}
-              disabled={!rangeOk || !weekdayCount || busy}
+              disabled={!rangeOk || !weekdaysBetween(from, to).length || busy}
               sx={{ height: 40, flexShrink: 0, minWidth: 130 }}
             >
               Generar
@@ -103,10 +110,10 @@ export default function BulkPanel({ today, draft, submittedDates, busy, actions,
                 Generados ({rows.length})
               </Typography>
               <Button startIcon={<DoneAllIcon />} onClick={() => setSelected(new Set(allowedDates))} disabled={!allowedDates.length}>
-                Todos ({allowedDates.length})
+                Seleccionar todos
               </Button>
               <Button startIcon={<DeleteOutlineIcon />} onClick={remove} disabled={busy}>
-                Borrar lote
+                Borrar
               </Button>
               <Box sx={{ flex: 1 }} />
               <Button
@@ -140,13 +147,30 @@ export default function BulkPanel({ today, draft, submittedDates, busy, actions,
                           {record.weekday}
                         </Typography>
                       </Typography>
-                      <Typography variant="body2" sx={{ fontVariantNumeric: 'tabular-nums' }}>
-                        {record.clockIn} → {record.clockOut} · {formatDuration(workedMinutes(record.clockIn, record.clockOut))}
-                      </Typography>
+                      <Stack direction="row" spacing={0.5} alignItems="center">
+                        <InlineTime
+                          value={record.clockIn}
+                          onCommit={(value) => actions.editBatchDay(record.date, { clockIn: value })}
+                          disabled={busy}
+                          align="left"
+                          width={62}
+                        />
+                        <Typography variant="caption" color="text.secondary">
+                          →
+                        </Typography>
+                        <InlineTime
+                          value={record.clockOut}
+                          onCommit={(value) => actions.editBatchDay(record.date, { clockOut: value })}
+                          disabled={busy}
+                          align="left"
+                          width={62}
+                        />
+                        <Typography variant="caption" color="text.secondary">
+                          {formatDuration(workedMinutes(record.clockIn, record.clockOut))}
+                        </Typography>
+                      </Stack>
+                      <NoteButton record={record} />
                     </Box>
-                    <IconButton size="small" onClick={() => onEdit(record)}>
-                      <EditIcon fontSize="small" />
-                    </IconButton>
                   </Stack>
                 </Paper>
               ))}
@@ -163,7 +187,6 @@ export default function BulkPanel({ today, draft, submittedDates, busy, actions,
                     <TableCell align="right">Salida</TableCell>
                     <TableCell align="right">Jornada</TableCell>
                     <TableCell>Observacion</TableCell>
-                    <TableCell align="right" />
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -181,22 +204,25 @@ export default function BulkPanel({ today, draft, submittedDates, busy, actions,
                         {formatShortDate(record.date)}
                       </TableCell>
                       <TableCell sx={{ color: 'text.secondary' }}>{record.weekday}</TableCell>
-                      <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>{record.clockIn}</TableCell>
-                      <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>{record.clockOut}</TableCell>
+                      <TableCell align="right">
+                        <InlineTime
+                          value={record.clockIn}
+                          onCommit={(value) => actions.editBatchDay(record.date, { clockIn: value })}
+                          disabled={busy}
+                        />
+                      </TableCell>
+                      <TableCell align="right">
+                        <InlineTime
+                          value={record.clockOut}
+                          onCommit={(value) => actions.editBatchDay(record.date, { clockOut: value })}
+                          disabled={busy}
+                        />
+                      </TableCell>
                       <TableCell align="right" sx={{ color: 'text.secondary', whiteSpace: 'nowrap' }}>
                         {formatDuration(workedMinutes(record.clockIn, record.clockOut))}
                       </TableCell>
-                      <TableCell sx={{ maxWidth: 180 }}>
-                        <Typography variant="body2" noWrap title={record.note}>
-                          {record.note || <Box component="span" sx={{ color: 'text.disabled' }}>—</Box>}
-                        </Typography>
-                      </TableCell>
-                      <TableCell align="right">
-                        <Tooltip title="corregir este dia">
-                          <IconButton size="small" onClick={() => onEdit(record)}>
-                            <EditIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
+                      <TableCell>
+                        <NoteButton record={record} />
                       </TableCell>
                     </TableRow>
                   ))}
@@ -206,6 +232,17 @@ export default function BulkPanel({ today, draft, submittedDates, busy, actions,
           )}
         </Box>
       )}
+
+      <ObservationDialog
+        open={!!noteFor}
+        record={noteFor}
+        onClose={() => setNoteFor(null)}
+        onSave={async (note) => {
+          const target = noteFor;
+          setNoteFor(null);
+          await actions.editBatchDay(target.date, { note });
+        }}
+      />
     </Stack>
   );
 }

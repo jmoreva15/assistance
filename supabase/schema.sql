@@ -30,7 +30,7 @@ create table if not exists public.drafts (
   kind text not null,
   payload jsonb not null,
   updated_at timestamptz not null default now(),
-  constraint drafts_kind_valid check (kind in ('today', 'single', 'bulk')),
+  constraint drafts_kind_valid check (kind in ('today', 'bulk')),
   constraint drafts_pk primary key (user_id, kind)
 );
 

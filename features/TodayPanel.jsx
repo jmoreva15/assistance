@@ -2,12 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import {
-  Alert, Box, Button, Card, CardContent, Divider, IconButton, LinearProgress, Paper, Stack, TextField,
-  Tooltip, Typography,
+  Alert, Box, Button, Card, CardContent, Divider, LinearProgress, Paper, Stack, TextField, Typography,
 } from '@mui/material';
 import LoginIcon from '@mui/icons-material/Login';
 import LogoutIcon from '@mui/icons-material/Logout';
-import EditIcon from '@mui/icons-material/Edit';
 import SendIcon from '@mui/icons-material/Send';
 import Clock from '../components/Clock.jsx';
 import PunchCard from '../components/PunchCard.jsx';
@@ -16,8 +14,9 @@ import { COMPLETENESS, FULL_DAY_MINUTES, completenessOf, timeNotice } from '../l
 import { formatDuration, workedMinutes } from '../lib/domain/time.js';
 import { MONO } from '../lib/theme/theme.js';
 
-export default function TodayPanel({ today, draft, submitted, busy, actions, onEdit, onSubmit }) {
+export default function TodayPanel({ draft, submitted, busy, actions, onSubmit }) {
   const record = submitted ?? draft ?? null;
+  const locked = !!submitted;
   const completeness = completenessOf(record);
   const worked = workedMinutes(record?.clockIn, record?.clockOut);
   const [note, setNote] = useState(draft?.note ?? '');
@@ -59,8 +58,9 @@ export default function TodayPanel({ today, draft, submitted, busy, actions, onE
             time={record?.clockIn}
             icon={<LoginIcon sx={{ fontSize: 15 }} />}
             onPunch={actions.clockIn}
-            disabled={!!submitted || busy}
-            hint={submitted ? 'enviado' : null}
+            onEdit={(value) => actions.editToday({ clockIn: value })}
+            locked={locked || busy}
+            hint={locked ? 'enviado' : null}
           />
           <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', sm: 'block' } }} />
           <Divider sx={{ display: { xs: 'block', sm: 'none' } }} />
@@ -69,8 +69,9 @@ export default function TodayPanel({ today, draft, submitted, busy, actions, onE
             time={record?.clockOut}
             icon={<LogoutIcon sx={{ fontSize: 15 }} />}
             onPunch={punchOut}
-            disabled={!!submitted || busy}
-            hint={submitted ? 'enviado' : null}
+            onEdit={(value) => actions.editToday({ clockOut: value })}
+            locked={locked || busy}
+            hint={locked ? 'enviado' : null}
           />
         </Stack>
 
@@ -85,34 +86,21 @@ export default function TodayPanel({ today, draft, submitted, busy, actions, onE
           </Box>
         )}
 
-        {!submitted && (record?.clockIn || record?.clockOut) && (
-          <>
-            <Divider />
-            <Stack direction="row" justifyContent="center" sx={{ py: 0.5 }}>
-              <Tooltip title="corregir las horas de hoy">
-                <IconButton size="small" onClick={() => onEdit(record)}>
-                  <EditIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-            </Stack>
-          </>
-        )}
-
         <Divider />
         <CardContent>
-          {!submitted && completeness === COMPLETENESS.EMPTY && (
+          {!locked && completeness === COMPLETENESS.EMPTY && (
             <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
               Toca <strong>ENTRADA</strong> al empezar.
             </Typography>
           )}
 
-          {!submitted && completeness === COMPLETENESS.PARTIAL && (
+          {!locked && completeness === COMPLETENESS.PARTIAL && (
             <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
               Cuando termines, toca <strong>SALIDA</strong>.
             </Typography>
           )}
 
-          {!submitted && completeness === COMPLETENESS.COMPLETE && (
+          {!locked && completeness === COMPLETENESS.COMPLETE && (
             <Stack spacing={2}>
               <Paper variant="outlined" sx={{ px: 2, py: 1.25 }}>
                 <Stack direction="row" spacing={1} alignItems="baseline" justifyContent="center" flexWrap="wrap" useFlexGap>
@@ -137,32 +125,31 @@ export default function TodayPanel({ today, draft, submitted, busy, actions, onE
                 label="Observacion (opcional)"
                 value={note}
                 onChange={(event) => setNote(event.target.value)}
+                onBlur={() => {
+                  if (noteChanged) actions.editToday({ note });
+                }}
                 multiline
                 minRows={2}
                 fullWidth
               />
 
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-                {noteChanged && <Button onClick={() => actions.editToday({ note })}>Guardar observacion</Button>}
-                <Box sx={{ flex: 1 }} />
-                <Button
-                  variant="contained"
-                  color="error"
-                  size="large"
-                  startIcon={<SendIcon />}
-                  disabled={busy}
-                  onClick={async () => {
-                    if (noteChanged) await actions.editToday({ note });
-                    onSubmit([{ ...record, note }], 'today');
-                  }}
-                >
-                  Enviar mi jornada
-                </Button>
-              </Stack>
+              <Button
+                variant="contained"
+                color="error"
+                size="large"
+                startIcon={<SendIcon />}
+                disabled={busy}
+                onClick={async () => {
+                  if (noteChanged) await actions.editToday({ note });
+                  onSubmit([{ ...record, note }], 'today');
+                }}
+              >
+                Enviar mi jornada
+              </Button>
             </Stack>
           )}
 
-          {submitted && (
+          {locked && (
             <Alert severity="success">
               Hoy ya fue enviado ({submitted.clockIn} → {submitted.clockOut}, {formatDuration(worked)}).
             </Alert>
