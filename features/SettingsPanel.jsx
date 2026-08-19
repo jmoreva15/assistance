@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import {
-  Alert, Box, Button, Card, CardContent, Divider, IconButton, InputAdornment, Stack, TextField, Typography,
+  Box, Button, Card, CardContent, IconButton, InputAdornment, Stack, TextField, Typography,
 } from '@mui/material';
 import LogoutIcon from '@mui/icons-material/Logout';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
@@ -12,7 +12,7 @@ import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 
 const mask = (value = '') => (value.length > 4 ? '•'.repeat(value.length - 4) + value.slice(-4) : value);
 
-export default function SettingsPanel({ user, formUrl, storage, busy, actions }) {
+export default function SettingsPanel({ user, formUrl, busy, actions }) {
   const [fullName, setFullName] = useState(user.fullName);
   const [showDni, setShowDni] = useState(false);
 
@@ -93,18 +93,13 @@ export default function SettingsPanel({ user, formUrl, storage, busy, actions })
 
       <Card variant="outlined">
         <CardContent>
-          <Typography variant="h6">Sesion</Typography>
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-            Tus registros viven en la base de datos, no en este navegador: entra con tu DNI desde cualquier
-            dispositivo y aparecen todos.
-          </Typography>
-          <Divider sx={{ my: 2.5 }} />
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ sm: 'center' }}>
-            <Alert severity={storage === 'supabase' ? 'success' : 'warning'} sx={{ flex: 1 }}>
-              {storage === 'supabase'
-                ? 'Conectado a Supabase.'
-                : 'Sin Supabase configurado: los datos se guardan en un archivo local, solo para desarrollo.'}
-            </Alert>
+            <Box sx={{ flex: 1 }}>
+              <Typography variant="h6">Sesion</Typography>
+              <Typography variant="caption" color="text.secondary">
+                Se cierra solo en este dispositivo. Tus registros no se borran.
+              </Typography>
+            </Box>
             <Button startIcon={<LogoutIcon />} onClick={actions.signOut}>
               Cerrar sesion
             </Button>

@@ -144,7 +144,7 @@ export default function TodayPanel({ draft, submitted, busy, actions, onSubmit }
                   onSubmit([{ ...record, note }], 'today');
                 }}
               >
-                Enviar mi jornada
+                Registrar asistencia
               </Button>
             </Stack>
           )}

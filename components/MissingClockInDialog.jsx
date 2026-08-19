@@ -22,7 +22,19 @@ export default function MissingClockInDialog({ open, onClose, onConfirm }) {
   const valid = !!parseTime(clockIn) && !rejection;
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth fullScreen={mobile}>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="xs"
+      fullWidth
+      fullScreen={mobile}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' && valid) {
+          event.preventDefault();
+          onConfirm(clockIn);
+        }
+      }}
+    >
       <DialogTitle>¿A que hora entraste?</DialogTitle>
       <DialogContent>
         <Stack spacing={3}>
@@ -45,8 +57,8 @@ export default function MissingClockInDialog({ open, onClose, onConfirm }) {
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Cancelar</Button>
-        <Button variant="contained" disabled={!valid} onClick={() => onConfirm(clockIn)}>
-          Guardar jornada
+        <Button variant="contained" disabled={!valid} onClick={() => onConfirm(clockIn)} autoFocus>
+          Registrar asistencia
         </Button>
       </DialogActions>
     </Dialog>

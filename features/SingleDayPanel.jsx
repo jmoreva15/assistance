@@ -71,7 +71,7 @@ export default function SingleDayPanel({ today, submittedDates, busy, onSubmit }
           )}
 
           <Button variant="contained" color="error" size="large" startIcon={<SendIcon />} disabled={!valid || busy} onClick={send}>
-            Enviar
+            Registrar asistencia
           </Button>
         </Stack>
       </CardContent>

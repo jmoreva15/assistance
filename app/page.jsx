@@ -100,13 +100,7 @@ export default function Page() {
         )}
         {tab === 3 && <SubmittedPanel submissions={workspace.submissions} />}
         {tab === 4 && (
-          <SettingsPanel
-            user={workspace.user}
-            formUrl={workspace.formUrl}
-            storage={workspace.storage}
-            busy={busy}
-            actions={actions}
-          />
+          <SettingsPanel user={workspace.user} formUrl={workspace.formUrl} busy={busy} actions={actions} />
         )}
 
         <ActivityLog entries={activity} />
@@ -119,8 +113,8 @@ export default function Page() {
 
       <ConfirmDialog
         open={!!pending}
-        title="Enviar al formulario"
-        confirmLabel={`Enviar ${pending?.records.length ?? 0}`}
+        title="Registrar asistencia"
+        confirmLabel={`Registrar ${pending?.records.length ?? 0}`}
         color="error"
         onClose={() => setPending(null)}
         onConfirm={() => {
@@ -130,7 +124,7 @@ export default function Page() {
         }}
       >
         <Typography variant="body2" gutterBottom>
-          Esto es lo que se va a enviar ({pending?.records.length} registro(s)):
+          Se va a registrar tu asistencia de {pending?.records.length} dia(s):
         </Typography>
         <Box sx={{ fontFamily: MONO, fontSize: 12.5, my: 1.5, border: 1, borderColor: 'divider', maxHeight: 220, overflow: 'auto' }}>
           {(pending?.records ?? []).map((record) => (

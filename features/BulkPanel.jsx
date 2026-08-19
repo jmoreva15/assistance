@@ -123,7 +123,7 @@ export default function BulkPanel({ today, draft, submittedDates, busy, actions,
                 disabled={!chosen.length || busy}
                 onClick={() => onSubmit(chosen, 'bulk')}
               >
-                Enviar {chosen.length ? `(${chosen.length})` : ''}
+                Registrar {chosen.length ? `(${chosen.length})` : 'asistencia'}
               </Button>
             </Stack>
           </Paper>

@@ -64,10 +64,10 @@ Nunca se queda trabada.
 Ten presente que consultar el DNI significa **enviarlo a ese servicio de terceros**.
 
 Si esas variables faltan, la aplicación arranca igual guardando en un **archivo local**
-(`.data/store.json`) para desarrollo: funciona todo y **sobrevive a reiniciar el servidor**.
-La pestaña Configuración avisa cuál de los dos está activo. Ese archivo está en `.gitignore`;
-si el disco es de solo lectura (por ejemplo en un despliegue), el driver sigue en memoria sin
-romperse, pero ahí lo que corresponde es tener Supabase configurado.
+(`.data/store.json`) para desarrollo: funciona todo y **sobrevive a reiniciar el servidor**. Ese
+archivo está en `.gitignore`; si el disco es de solo lectura (por ejemplo en un despliegue), el
+driver sigue en memoria sin romperse, pero ahí lo que corresponde es tener Supabase
+configurado.
 
 ## Cómo funciona el envío
 
@@ -231,8 +231,8 @@ buscador y el total de horas.
 ### 5. Configuración
 
 Solo el nombre se puede cambiar. El DNI se muestra enmascarado y es fijo, porque es tu
-identificador de sesión; el formulario también, porque es el mismo para todos. La pestaña
-indica si estás sobre Supabase o en memoria, y permite cerrar la sesión de este dispositivo.
+identificador de sesión; el formulario también, porque es el mismo para todos. Debajo, un
+botón para **cerrar sesión** en este dispositivo: no borra ningún registro.
 
 ## Qué se rechaza y qué solo se avisa
 
@@ -247,8 +247,13 @@ Lo que sí se impide, para no ensuciar el formulario: enviar un día futuro, uno
 uno que ya está en el historial.
 
 Los únicos cuadros que se abren en toda la aplicación son tres: la confirmación antes de
-enviar, la pregunta por la hora de entrada cuando marcaste solo la salida, y la observación de
-un día del lote. Todo lo demás se edita en el sitio.
+registrar, la pregunta por la hora de entrada cuando marcaste solo la salida, y la observación
+de un día del lote. Todo lo demás se edita en el sitio.
+
+Los tres se manejan con el teclado: el botón principal viene enfocado, **Enter** confirma
+(`Ctrl+Enter` en la observación, que es un campo de varias líneas) y **Escape** cierra. El de
+observación además detecta si no cambiaste nada —el botón queda deshabilitado— y ofrece
+«Quitar observación» cuando borras el texto de una que ya existía.
 
 ## Móvil
 
