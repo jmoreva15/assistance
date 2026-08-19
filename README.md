@@ -278,10 +278,25 @@ La pantalla de inicio pide **solo el DNI**.
 El nombre se puede corregir después en Configuración. El navegador solo recuerda el id de la
 sesión (`asistencia:user` en `localStorage`); todos los datos están en la base.
 
-**Si esa sesión ya no existe** en la base, cualquier petición responde `401` con el código
-`SESSION_GONE`. La aplicación no se queda trabada: borra la sesión local, vuelve a la pantalla
-del DNI y muestra *«tu sesión se cerró: entra otra vez con tu DNI»*. Pasa, por ejemplo, si se
-vacía la base o si cambiaste de proyecto de Supabase.
+### Cuánto dura la sesión
+
+**No caduca.** Se guarda en `localStorage` como `{ userId, savedAt }` y sigue ahí después de
+cerrar el navegador, apagar la computadora o pasar días. Solo termina de tres formas:
+
+1. Le das a **Cerrar sesión** en Configuración.
+2. Borras los datos del sitio en el navegador.
+3. La cuenta ya no existe en la base.
+
+Ese tercer caso es el único en que la aplicación te saca sola: la petición responde `401` con
+el código `SESSION_GONE`, se limpia la sesión local y vuelve la pantalla del DNI con
+*«tu sesión se cerró: entra otra vez con tu DNI»*. Pasa si se vacía la base o si cambiaste de
+proyecto de Supabase.
+
+**Cualquier otro fallo no toca la sesión y se resuelve solo.** Si el servidor no responde,
+devuelve un `500` o se corta la conexión, la aplicación **reintenta sola** a los 0,4 s, 1,2 s,
+3 s y después cada 6 s, mostrando el esqueleto de carga mientras tanto. No hay pantalla de
+error ni botón que apretar: cuando el servidor vuelve, entra sin pedirte nada. Antes cualquier
+error al retomar la sesión la borraba y te mandaba al login.
 
 ## Sobre la seguridad
 
