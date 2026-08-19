@@ -44,9 +44,9 @@ export default function Page() {
       <SignIn
         busy={busy}
         error={error}
-        onOpen={async ({ dni, fullName, formUrl }) => {
+        onOpen={async ({ dni, fullName }) => {
           setError(null);
-          return actions.openSession({ dni, fullName, formUrl });
+          return actions.openSession({ dni, fullName });
         }}
       />
     );
@@ -114,7 +114,13 @@ export default function Page() {
         )}
         {tab === 3 && <SubmittedPanel submissions={workspace.submissions} />}
         {tab === 4 && (
-          <SettingsPanel user={workspace.user} storage={workspace.storage} busy={busy} actions={actions} />
+          <SettingsPanel
+            user={workspace.user}
+            formUrl={workspace.formUrl}
+            storage={workspace.storage}
+            busy={busy}
+            actions={actions}
+          />
         )}
 
         <ActivityLog entries={activity} />

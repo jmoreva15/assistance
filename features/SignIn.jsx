@@ -1,25 +1,21 @@
 'use client';
 
 import { useState } from 'react';
-import { Alert, Box, Button, Container, Paper, Stack, TextField, Typography } from '@mui/material';
+import { Alert, Button, Container, Paper, Stack, TextField, Typography } from '@mui/material';
 import LoginIcon from '@mui/icons-material/Login';
-import { DEFAULT_CLOCK_IN, DEFAULT_CLOCK_OUT } from '../lib/domain/records.js';
-
-const IS_FORM_URL = /^https:\/\/docs\.google\.com\/forms\/.+/;
 
 export default function SignIn({ onOpen, busy, error }) {
   const [dni, setDni] = useState('');
-  const [needsAccount, setNeedsAccount] = useState(false);
   const [fullName, setFullName] = useState('');
-  const [formUrl, setFormUrl] = useState('');
+  const [askName, setAskName] = useState(null);
 
   const dniOk = /^\d{8}$/.test(dni);
-  const urlOk = IS_FORM_URL.test(formUrl.trim());
-  const canCreate = dniOk && fullName.trim() && urlOk;
+  const nameOk = fullName.trim().length > 2;
+  const ready = askName ? dniOk && nameOk : dniOk;
 
   const enter = async () => {
-    const result = await onOpen({ dni });
-    if (!result) setNeedsAccount(true);
+    const result = await onOpen({ dni, fullName: askName ? fullName : '' });
+    if (result?.needsFullName) setAskName(result.reason);
   };
 
   return (
@@ -36,50 +32,39 @@ export default function SignIn({ onOpen, busy, error }) {
           <TextField
             label="DNI"
             value={dni}
-            onChange={(event) => setDni(event.target.value.replace(/\D/g, '').slice(0, 8))}
+            onChange={(event) => {
+              setDni(event.target.value.replace(/\D/g, '').slice(0, 8));
+              setAskName(null);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && ready && !busy) enter();
+            }}
             error={dni.length > 0 && !dniOk}
             helperText={dni.length > 0 && !dniOk ? '8 digitos' : ' '}
             autoFocus
             fullWidth
           />
 
-          {!needsAccount && (
-            <Button variant="contained" startIcon={<LoginIcon />} disabled={!dniOk || busy} onClick={enter}>
-              Entrar
-            </Button>
-          )}
-
-          {needsAccount && (
+          {askName && (
             <>
-              <Alert severity="info">Ese DNI no tiene cuenta todavia. Completa estos datos para crearla.</Alert>
+              <Alert severity="warning">No pude traer tu nombre automaticamente: {askName}.</Alert>
               <TextField
                 label="Nombre completo"
                 value={fullName}
                 onChange={(event) => setFullName(event.target.value.toUpperCase())}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' && ready && !busy) enter();
+                }}
+                autoFocus
                 fullWidth
+                helperText="Como aparece en el formulario"
               />
-              <TextField
-                label="URL del formulario"
-                value={formUrl}
-                onChange={(event) => setFormUrl(event.target.value)}
-                error={formUrl.length > 0 && !urlOk}
-                helperText={formUrl.length > 0 && !urlOk ? 'debe ser un enlace de Formularios de Google' : 'el enlace que termina en /viewform'}
-                fullWidth
-              />
-              <Typography variant="caption" color="text.secondary">
-                Las jornadas se generan con {DEFAULT_CLOCK_IN} a {DEFAULT_CLOCK_OUT} y se pueden corregir una por una.
-              </Typography>
-              <Box>
-                <Button
-                  variant="contained"
-                  disabled={!canCreate || busy}
-                  onClick={() => onOpen({ dni, fullName, formUrl })}
-                >
-                  Crear cuenta y entrar
-                </Button>
-              </Box>
             </>
           )}
+
+          <Button variant="contained" startIcon={<LoginIcon />} disabled={!ready || busy} onClick={enter}>
+            {busy ? 'Buscando…' : 'Entrar'}
+          </Button>
 
           {error && <Alert severity="error">{error}</Alert>}
         </Stack>

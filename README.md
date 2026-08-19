@@ -1,7 +1,7 @@
 # Asistencia
 
-Aplicación Next.js para registrar tu asistencia en un Formulario de Google. Entras con tu
-DNI y todos tus registros te siguen a cualquier dispositivo, porque viven en Supabase.
+Aplicación Next.js para registrar tu asistencia en un Formulario de Google. Entras **solo con
+tu DNI** y todos tus registros te siguen a cualquier dispositivo, porque viven en Supabase.
 
 Un solo proyecto: no hay servidor aparte ni navegador automatizado. El código está en inglés
 y **sin comentarios**; toda la explicación está en este documento.
@@ -26,6 +26,43 @@ SUPABASE_URL=https://xxxxx.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=eyJ...
 ```
 
+El formulario **no se configura**: está fijo en [`lib/config/form.js`](lib/config/form.js) y es
+el mismo para todos. Si algún día cambia, se edita ahí o se define `FORM_URL` en el entorno.
+
+## Consulta del DNI
+
+Cuando un DNI entra por primera vez, el nombre completo se trae de una API de RENIEC y se
+guarda en la base. Después ya no se vuelve a consultar nunca.
+
+**Todas las APIs públicas de RENIEC piden una clave gratuita** (las lo probé: `apis.net.pe`,
+`decolecta`, `apisperu`, `migo`, `apiperu`; ninguna funciona sin token, y las que se anuncian
+como libres devuelven una página web en vez de JSON). Así que hay que registrarse en una,
+sacar la clave y ponerla en `.env.local`:
+
+```
+DNI_API_PROVIDER=decolecta
+DNI_API_TOKEN=tu-clave
+```
+
+Proveedores soportados en [`lib/identity/dni-lookup.js`](lib/identity/dni-lookup.js):
+
+| `DNI_API_PROVIDER` | Servicio | Dónde se saca la clave |
+|---|---|---|
+| `decolecta` | api.decolecta.com | decolecta.com |
+| `apisnetpe` | api.apis.net.pe (v2) | apis.net.pe |
+| `apisperu` | dniruc.apisperu.com | apisperu.com |
+| `migo` | api.migo.pe | migo.pe |
+
+Los cuatro se normalizan al mismo resultado: el nombre se arma como **nombres + apellido
+paterno + apellido materno**, en ese orden, porque es como aparece en el formulario. Agregar
+otro proveedor es añadir una entrada a ese mapa.
+
+**Si la consulta falla**, la pantalla de inicio pide el nombre a mano y dice por qué: sin
+clave configurada, clave rechazada, DNI no encontrado, límite de consultas o tiempo agotado.
+Nunca se queda trabada.
+
+Ten presente que consultar el DNI significa **enviarlo a ese servicio de terceros**.
+
 Si esas variables faltan, la aplicación arranca igual con un almacenamiento **en memoria**
 para desarrollo: funciona todo, pero los datos se pierden al reiniciar el servidor. La pestaña
 Configuración avisa cuál de los dos está activo.
@@ -36,7 +73,8 @@ No hay navegador automatizado. El servidor hace dos cosas con el Formulario de G
 
 1. **Lo lee.** Descarga la página pública y saca la lista de preguntas con su `entry.…`, su
    título y su tipo. Los identificadores no están escritos en el código: se leen en cada
-   envío, así que si mañana agregas una pregunta al formulario, sigue funcionando.
+   envío, así que si mañana agregas una pregunta al formulario, sigue funcionando. La
+   dirección de envío también se lee del `action` del propio formulario, no se deduce.
 2. **Lo envía.** Hace un `POST` a `…/formResponse` con los parámetros que Google espera, y
    **lee la respuesta real** para saber si quedó registrado.
 
@@ -63,7 +101,7 @@ app/
   providers.jsx           frontera cliente: MUI, emotion y los pickers
   page.jsx                pantalla principal con las cinco pestañas
   api/session/route.js    abrir o retomar sesión, y leer el espacio de trabajo
-  api/profile/route.js    nombre y URL del formulario
+  api/profile/route.js    el nombre completo
   api/drafts/route.js     guardar o borrar el borrador de una sección
   api/submissions/route.js enviar al formulario y registrar lo confirmado
 
@@ -72,6 +110,8 @@ lib/
     time.js                 interpretar y formatear horas y fechas
     records.js              completitud, avisos y generación de lotes
     activity.js             nombres de acciones y descripción de cambios
+  identity/               consulta del DNI contra las APIs de RENIEC
+    dni-lookup.js           un proveedor por entrada, todos normalizados igual
   forms/                  todo lo que sabe de Formularios de Google
     read-form.js            leer la estructura del formulario
     field-mapping.js        emparejar nuestros campos con las preguntas por título
@@ -118,7 +158,6 @@ Una fila por persona. El DNI es el identificador de sesión.
 | `id` | uuid | clave primaria |
 | `dni` | text | único, exactamente 8 dígitos |
 | `full_name` | text | se envía en cada registro |
-| `form_url` | text | el formulario de esa persona |
 | `created_at` / `updated_at` | timestamptz | |
 
 ### `submissions`
@@ -191,9 +230,9 @@ buscador y el total de horas.
 
 ### 5. Configuración
 
-Nombre y URL del formulario. El DNI se muestra enmascarado y no se puede cambiar, porque es
-tu identificador de sesión. También indica si estás sobre Supabase o en memoria, y permite
-cerrar la sesión de este dispositivo.
+Solo el nombre se puede cambiar. El DNI se muestra enmascarado y es fijo, porque es tu
+identificador de sesión; el formulario también, porque es el mismo para todos. La pestaña
+indica si estás sobre Supabase o en memoria, y permite cerrar la sesión de este dispositivo.
 
 ## Qué se rechaza y qué solo se avisa
 
@@ -220,7 +259,20 @@ modo claro u oscuro sale del sistema operativo sin JavaScript y sin parpadeo al 
 Es una aplicación Next normal: sirve Vercel, Netlify, Railway, Render o un contenedor.
 No necesita navegador ni binarios: el envío son dos peticiones HTTP.
 
-Variables de entorno en producción: `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY`.
+Variables de entorno en producción: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`,
+`DNI_API_PROVIDER` y `DNI_API_TOKEN`.
+
+## Iniciar sesión
+
+La pantalla de inicio pide **solo el DNI**.
+
+- Si el DNI **ya está en la base**, se abre esa cuenta y llegan todos sus registros,
+  borradores y bitácora. No se consulta nada externo.
+- Si **no está**, se consulta la API de RENIEC, se guarda el nombre que devuelve y se entra.
+- Si esa consulta no se puede hacer, ahí sí aparece el campo del nombre, con el motivo.
+
+El nombre se puede corregir después en Configuración. El navegador solo recuerda el id de la
+sesión (`asistencia:user` en `localStorage`); todos los datos están en la base.
 
 ## Sobre la seguridad
 

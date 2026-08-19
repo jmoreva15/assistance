@@ -4,7 +4,6 @@ create table if not exists public.users (
   id uuid primary key default gen_random_uuid(),
   dni text not null,
   full_name text not null,
-  form_url text not null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint users_dni_format check (dni ~ '^[0-9]{8}$'),

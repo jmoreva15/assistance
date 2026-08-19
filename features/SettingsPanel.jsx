@@ -10,22 +10,18 @@ import SaveIcon from '@mui/icons-material/Save';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 
-const IS_FORM_URL = /^https:\/\/docs\.google\.com\/forms\/.+/;
 const mask = (value = '') => (value.length > 4 ? '•'.repeat(value.length - 4) + value.slice(-4) : value);
 
-export default function SettingsPanel({ user, storage, busy, actions }) {
+export default function SettingsPanel({ user, formUrl, storage, busy, actions }) {
   const [fullName, setFullName] = useState(user.fullName);
-  const [formUrl, setFormUrl] = useState(user.formUrl);
   const [showDni, setShowDni] = useState(false);
 
   useEffect(() => {
     setFullName(user.fullName);
-    setFormUrl(user.formUrl);
   }, [user]);
 
-  const urlOk = IS_FORM_URL.test(formUrl.trim());
-  const dirty = fullName !== user.fullName || formUrl.trim() !== user.formUrl;
-  const valid = !!fullName.trim() && urlOk;
+  const dirty = fullName !== user.fullName;
+  const valid = !!fullName.trim();
 
   return (
     <Stack spacing={2.5}>
@@ -64,20 +60,19 @@ export default function SettingsPanel({ user, storage, busy, actions }) {
             />
 
             <TextField
-              label="URL del formulario"
+              label="Formulario"
               value={formUrl}
-              onChange={(event) => setFormUrl(event.target.value)}
-              error={formUrl.length > 0 && !urlOk}
-              helperText={formUrl.length > 0 && !urlOk ? 'debe ser un enlace de Formularios de Google' : 'el enlace que termina en /viewform'}
+              disabled
               fullWidth
+              helperText="Es el mismo para todos y no se configura"
               InputProps={{
-                endAdornment: urlOk ? (
+                endAdornment: (
                   <InputAdornment position="end">
                     <IconButton size="small" component="a" href={formUrl} target="_blank" rel="noreferrer">
                       <OpenInNewIcon fontSize="small" />
                     </IconButton>
                   </InputAdornment>
-                ) : null,
+                ),
               }}
             />
 
@@ -87,7 +82,7 @@ export default function SettingsPanel({ user, storage, busy, actions }) {
                 variant="contained"
                 startIcon={<SaveIcon />}
                 disabled={!dirty || !valid || busy}
-                onClick={() => actions.updateProfile({ fullName, formUrl: formUrl.trim() })}
+                onClick={() => actions.updateProfile({ fullName })}
               >
                 {dirty ? 'Guardar cambios' : 'Sin cambios'}
               </Button>
