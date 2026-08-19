@@ -1,15 +1,15 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import {
-  Alert, Box, Chip, CircularProgress, Container, Divider, Snackbar, Stack, Tab, Tabs, Typography,
-} from '@mui/material';
+import { Alert, Box, Chip, Container, Divider, Snackbar, Stack, Tab, Tabs, Typography } from '@mui/material';
 import AutoAwesomeMotionIcon from '@mui/icons-material/AutoAwesomeMotion';
 import EventAvailableIcon from '@mui/icons-material/EventAvailable';
 import InventoryIcon from '@mui/icons-material/Inventory';
 import ScheduleIcon from '@mui/icons-material/Schedule';
 import SettingsIcon from '@mui/icons-material/Settings';
 import ActivityLog from '../components/ActivityLog.jsx';
+import AppSkeleton from '../components/AppSkeleton.jsx';
+import TopProgress from '../components/TopProgress.jsx';
 import ConfirmDialog from '../components/ConfirmDialog.jsx';
 import BulkPanel from '../features/BulkPanel.jsx';
 import SettingsPanel from '../features/SettingsPanel.jsx';
@@ -29,24 +29,21 @@ export default function Page() {
   const submittedCount = workspace.submissions.length;
   const activity = useMemo(() => workspace.activity ?? [], [workspace.activity]);
 
-  if (loading) {
-    return (
-      <Container sx={{ py: 10, textAlign: 'center' }}>
-        <CircularProgress size={24} />
-      </Container>
-    );
-  }
+  if (loading) return <AppSkeleton />;
 
   if (!workspace.user) {
     return (
-      <SignIn
+      <>
+        <TopProgress active={busy} />
+        <SignIn
         busy={busy}
         error={error}
         onOpen={async ({ dni, fullName }) => {
           setError(null);
           return actions.openSession({ dni, fullName });
         }}
-      />
+        />
+      </>
     );
   }
 
@@ -54,6 +51,7 @@ export default function Page() {
 
   return (
     <Container maxWidth="md" sx={{ py: { xs: 2, sm: 4 }, px: { xs: 1.5, sm: 3 } }}>
+      <TopProgress active={busy} />
       <Stack spacing={2.5}>
         <Stack direction="row" spacing={1.5} alignItems="baseline" flexWrap="wrap" useFlexGap>
           <Typography variant="h5">Asistencia</Typography>

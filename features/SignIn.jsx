@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Alert, Button, Container, Paper, Stack, TextField, Typography } from '@mui/material';
+import { Alert, Button, Container, LinearProgress, Paper, Stack, TextField, Typography } from '@mui/material';
 import LoginIcon from '@mui/icons-material/Login';
 
 export default function SignIn({ onOpen, busy, error }) {
@@ -65,6 +65,15 @@ export default function SignIn({ onOpen, busy, error }) {
           <Button variant="contained" startIcon={<LoginIcon />} disabled={!ready || busy} onClick={enter}>
             {busy ? 'Buscando…' : 'Entrar'}
           </Button>
+
+          {busy && (
+            <Stack spacing={1}>
+              <LinearProgress />
+              <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center' }}>
+                {askName ? 'Creando tu cuenta…' : 'Buscando tu DNI y cargando tus registros…'}
+              </Typography>
+            </Stack>
+          )}
 
           {error && <Alert severity="error">{error}</Alert>}
         </Stack>
