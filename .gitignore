@@ -1,11 +1,8 @@
 node_modules/
-panel/dist/
+.next/
+out/
 
-# datos personales exportados (nombre, DNI, registros). NO subir a ningun repositorio.
+.env
+.env.local
+
 mis-datos*.json
-
-# archivos temporales de cada envio: llevan nombre y DNI, se borran al terminar
-.trabajos/
-
-# capturas de diagnostico de envios fallidos
-capturas/

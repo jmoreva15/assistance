@@ -1,324 +1,235 @@
-# Control de Asistencia
+# Asistencia
 
-Panel web para registrar tu asistencia en un Formulario de Google. Tus datos viven en el
-navegador; el servidor solo se encarga de enviar el formulario y de dejar el registro.
+Aplicación Next.js para registrar tu asistencia en un Formulario de Google. Entras con tu
+DNI y todos tus registros te siguen a cualquier dispositivo, porque viven en Supabase.
+
+Un solo proyecto: no hay servidor aparte ni navegador automatizado. El código está en inglés
+y **sin comentarios**; toda la explicación está en este documento.
 
 ```bash
 npm install
-npx playwright install chromium   # solo la primera vez
-npm run build                     # compila el panel
-npm start                         # abre http://localhost:4321
+cp .env.example .env.local     # y completa las claves de Supabase
+npm run dev                    # http://localhost:3000
 ```
 
-## Como funciona
+Para producción: `npm run build && npm start`.
+
+## Puesta en marcha de Supabase
+
+1. Crea un proyecto en [supabase.com](https://supabase.com).
+2. Abre el **SQL Editor** y ejecuta el contenido de [`supabase/schema.sql`](supabase/schema.sql).
+3. En **Project Settings → API** copia la URL del proyecto y la clave `service_role`.
+4. Ponlas en `.env.local`:
 
 ```
-navegador (localStorage)               servidor Node
-  tus datos, tus dias,        ──POST──▶  /api/enviar             ──▶ Playwright ──▶ Formulario
-  tu registro                 ◀─GET───   /api/trabajo?cliente=x      (solo TU envio)
+SUPABASE_URL=https://xxxxx.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=eyJ...
 ```
 
-**El servidor no guarda datos tuyos.** Recibe los registros, los envia al formulario y
-devuelve el detalle. Nada queda en su disco: el archivo temporal de cada envio se borra en
-cuanto termina. Por eso se puede desplegar sin dejar datos personales en el servidor.
+Si esas variables faltan, la aplicación arranca igual con un almacenamiento **en memoria**
+para desarrollo: funciona todo, pero los datos se pierden al reiniciar el servidor. La pestaña
+Configuración avisa cuál de los dos está activo.
 
-### Cada usuario, aislado
+## Cómo funciona el envío
 
-Cada navegador genera un identificador propio (`asistencia:cliente` en localStorage) y lo
-manda en cada peticion. Con eso el servidor:
+No hay navegador automatizado. El servidor hace dos cosas con el Formulario de Google:
 
-- Guarda **un trabajo por cliente**: `GET /api/trabajo?cliente=x` devuelve solo tu envio.
-- **No te bloquea** por el envio de otro; cada uno tiene el suyo (hasta 3 a la vez, para no
-  ahogar el servidor).
-- **No hay registro compartido.** No existe ningun `registro.log` global: las lineas de tus
-  envios se guardan en TU localStorage y solo las ves vos.
+1. **Lo lee.** Descarga la página pública y saca la lista de preguntas con su `entry.…`, su
+   título y su tipo. Los identificadores no están escritos en el código: se leen en cada
+   envío, así que si mañana agregas una pregunta al formulario, sigue funcionando.
+2. **Lo envía.** Hace un `POST` a `…/formResponse` con los parámetros que Google espera, y
+   **lee la respuesta real** para saber si quedó registrado.
 
-## Donde viven los datos
+La diferencia importante: las reglas de CORS solo aplican al navegador. Desde el servidor sí
+se lee el status y el cuerpo, así que la confirmación es de Google, no una suposición:
 
-Todo en el `localStorage` del navegador, clave `asistencia:v3`. **Cada seccion guarda en su
-propio sitio y no se mezclan:**
+| Respuesta | Significado |
+|---|---|
+| `200` con «se registró tu respuesta» | quedó guardado |
+| `400` | Google lo rechazó (falta o no acepta algún campo obligatorio) |
+| `404` | el formulario no existe o cambió de dirección |
+| cualquier otra | no se confirma nada y el día queda sin enviar |
 
-| Almacen | Que guarda | Cuando se borra |
+Las horas viajan en formato 24 h (`_hour=18`) y la fecha en `_year/_month/_day`.
+
+## Arquitectura
+
+Las responsabilidades están separadas para que cambiar una pieza no obligue a tocar el resto.
+Si en el futuro hay que migrar de nuevo, lo que se reemplaza es una capa, no la aplicación.
+
+```
+app/
+  layout.jsx              html, tema y proveedores
+  providers.jsx           frontera cliente: MUI, emotion y los pickers
+  page.jsx                pantalla principal con las cinco pestañas
+  api/session/route.js    abrir o retomar sesión, y leer el espacio de trabajo
+  api/profile/route.js    nombre y URL del formulario
+  api/drafts/route.js     guardar o borrar el borrador de una sección
+  api/submissions/route.js enviar al formulario y registrar lo confirmado
+
+lib/
+  domain/                 reglas puras, sin dependencias
+    time.js                 interpretar y formatear horas y fechas
+    records.js              completitud, avisos y generación de lotes
+    activity.js             nombres de acciones y descripción de cambios
+  forms/                  todo lo que sabe de Formularios de Google
+    read-form.js            leer la estructura del formulario
+    field-mapping.js        emparejar nuestros campos con las preguntas por título
+    submit-response.js      armar los parámetros, enviar e interpretar la respuesta
+  data/                   persistencia detrás de un solo puerto
+    repository.js           elige la implementación
+    supabase-driver.js      implementación real
+    memory-driver.js        implementación de desarrollo
+  api/                    servicios que usan las rutas (nunca la UI)
+    session-service.js      sesión, perfil y carga del espacio de trabajo
+    draft-service.js        borradores
+    submission-service.js  el envío completo, de principio a fin
+  client/                 lo que corre en el navegador
+    api-client.js           llamadas a /api
+    session-storage.js      recuerda el id de sesión en este dispositivo
+    use-attendance.js       estado y acciones para la UI
+  theme/                  tema de Material UI
+    tokens.js               colores y medidas
+    theme.js                el tema, con esquemas claro y oscuro
+components/               piezas reutilizables (reloj, tarjetas, diálogos, campos)
+features/                 una carpeta por pantalla
+supabase/schema.sql       el esquema de la base de datos
+```
+
+Reglas que se respetan en todo el proyecto:
+
+- `lib/domain` no importa nada. Se puede usar en el servidor y en el navegador.
+- `lib/data` es la única capa que habla con la base. Tiene cuatro métodos y dos
+  implementaciones; para cambiar de base de datos se escribe una tercera.
+- La UI nunca llama a la base ni al formulario: pasa por `lib/client` y las rutas de `/api`.
+- Las credenciales de Supabase **no llegan al navegador**: todo el acceso es del lado del
+  servidor.
+
+## La base de datos
+
+Cuatro tablas. Lo único que se acumula son los envíos; el resto es trabajo en curso.
+
+### `users`
+
+Una fila por persona. El DNI es el identificador de sesión.
+
+| Columna | Tipo | Notas |
 |---|---|---|
-| `configuracion` | nombre, DNI y URL del formulario | solo si lo cambias |
-| `jornada` | **solo el dia de hoy**, marcado con el reloj | al dia siguiente, si no se envio |
-| `unDia` | **un** dia suelto que se olvido marcar | al guardar otro, con «Borrar», o al enviarlo |
-| `lote` | lo que produjo la ultima generacion por intervalo | al generar otro, con «Borrar lote», o al enviarlo |
-| `enviados` | **el historial**: lo unico que se conserva para siempre | nunca |
+| `id` | uuid | clave primaria |
+| `dni` | text | único, exactamente 8 dígitos |
+| `full_name` | text | se envía en cada registro |
+| `form_url` | text | el formulario de esa persona |
+| `created_at` / `updated_at` | timestamptz | |
 
-Cuando Google confirma un envio, ese dia **se mueve** al historial de `enviados` y desaparece
-de donde estaba. Es el unico traspaso entre almacenes.
+### `submissions`
 
-Por eso en la cabecera solo hay un contador, **enviados**: es el unico numero que significa
-algo a largo plazo. Lo que esta sin enviar es trabajo en curso de cada seccion y se ve dentro
-de ella.
+El historial. Solo se escribe cuando Google confirma.
 
-**No hay migraciones.** Hay una sola clave, `asistencia`, y ningun codigo que convierta
-formatos anteriores: si el formato de los datos cambia, se exporta antes y se importa despues.
-Las claves de versiones viejas del proyecto se borran solas para no dejar datos personales
-olvidados en el navegador.
+| Columna | Tipo | Notas |
+|---|---|---|
+| `id` | uuid | clave primaria |
+| `user_id` | uuid | referencia a `users`, borra en cascada |
+| `work_date` | date | **único por usuario**: imposible enviar dos veces el mismo día |
+| `clock_in` / `clock_out` | time | |
+| `note` | text | la observación que fue al formulario |
+| `source` | text | `today`, `single` o `bulk` |
+| `submitted_at` | timestamptz | cuándo lo confirmó Google |
 
-La unica copia fuera del navegador es la que exportes desde **Configuracion**. Si borras los
-datos del sitio, se pierde.
+### `drafts`
 
-### Arquitectura
+Lo que cada sección tiene a medias. Una fila por usuario y por tipo, así que las secciones no
+se mezclan: guardar en una no toca a las otras.
 
-La logica de almacenamiento esta separada de los componentes, para poder cambiar
-localStorage por una API sin rehacer la aplicacion:
+| Columna | Tipo | Notas |
+|---|---|---|
+| `user_id` | uuid | referencia a `users` |
+| `kind` | text | `today`, `single` o `bulk`; junto a `user_id` forma la clave primaria |
+| `payload` | jsonb | el borrador tal cual lo usa la pantalla |
+| `updated_at` | timestamptz | |
 
-```
-panel/src/
-  datos/
-    repositorio.js     la puerta de acceso: leer / escribir / idCliente / borrar
-    almacenLocal.js    implementacion sobre localStorage (una sola clave, sin migraciones)
-    portable.js        exportar e importar el archivo JSON
-  dominio/
-    horas.js           parseo, validacion y formato de horas y fechas (puro)
-    registros.js       completitud, notas y generacion de lotes (puro)
-    bitacora.js        lineas de bitacora y descripcion de cambios (puro)
-  hooks/
-    useAsistencia.js   une repositorio + dominio y expone las acciones
-  secciones/           las cinco pantallas
-  componentes/         reloj, tarjetas de marcado, dialogos y campos de fecha/hora
-```
+### `activity_log`
 
-Ningun componente toca `localStorage`: todos pasan por `useAsistencia`. Para migrar a un
-backend basta escribir otro objeto con los cuatro metodos de `repositorio.js` (ya son
-asincronos) y cambiar una linea.
+La bitácora: qué acción, con qué detalle y cuándo.
 
-## Las cinco secciones
+Las cuatro tablas tienen **RLS activado y sin política que permita nada** a las claves
+públicas. El acceso es solo desde el servidor con la clave `service_role`, así que ni el
+navegador ni un tercero pueden leer las tablas directamente.
+
+## Las cinco pestañas
 
 ### 1. Mi jornada
 
-La pantalla principal: el dia de hoy, un **reloj en tiempo real** y dos tarjetas grandes que
-se marcan **con un clic**.
+El día de hoy, un reloj en tiempo real y dos tarjetas grandes que se marcan con un clic.
 
-- Toca **ENTRADA** al empezar: guarda la hora exacta. La tarjeta pasa a mostrar la hora y
-  deja de ser pulsable, asi que no se puede duplicar.
-- Toca **SALIDA** al terminar: guarda la hora exacta.
-- **Si te olvidaste de marcar la entrada** y tocas directamente SALIDA, se abre un modal
-  preguntando «¿A que hora entraste?» con 09:00 por defecto. Al confirmar se guardan las dos
-  horas: la entrada que pusiste y la salida de ese momento.
-- Una barra muestra cuanto llevas y cuanto falta para las 8 h.
-- **Lo que marcas y no envias no sobrevive al dia.** Si marcaste entrada y salida y nunca le
-  diste a enviar, al volver otro dia esas horas se descartan y «Mi jornada» arranca en cero.
-  Queda la constancia en la bitacora (`DESCARTADOS`). Lo que creaste a proposito en «Un dia» o
-  «Varios dias» **no** se descarta: existe para enviarse mas tarde.
-- Con las dos horas puestas se muestra el **intervalo registrado** (entrada, salida y cuanto
-  da), aparece el textarea de observaciones y el boton **Enviar mi jornada**. El panel no
-  decide por ti: solo informa lo que quedo marcado.
-- El lapiz corrige las horas a mano. Corregir **no** impide seguir marcando en vivo.
-- Los dias anteriores que quedaron a medias salen arriba con acceso directo para completarlos.
+- **ENTRADA** guarda la hora exacta. Una vez marcada, la tarjeta deja de ser pulsable.
+- **SALIDA** guarda la hora exacta. Si nunca marcaste la entrada y tocas salida, un modal
+  pregunta a qué hora entraste (09:00 por defecto) y guarda las dos.
+- Una barra muestra cuánto llevas y cuánto falta para las 8 h.
+- Con las dos horas se muestra el intervalo registrado, el campo de observación y el botón de
+  enviar. La pantalla informa, no decide.
+- El lápiz corrige las horas a mano; corregir no impide seguir marcando en vivo.
+- **Si marcaste y nunca enviaste, al día siguiente se descarta** y la pantalla arranca en cero.
+  Queda anotado en la bitácora. Lo de «Un día» y «Varios días» no se descarta.
 
-### 2. Un dia
+### 2. Un día
 
-Para cargar un dia suelto que se olvido marcar y **enviarlo ahi mismo**. Trae la fecha de
-ayer y las horas por defecto; se puede cambiar todo. Avisa si la fecha cae en fin de semana,
-bloquea las fechas futuras y los dias ya enviados, y si el dia ya existe sin enviar advierte
-que se va a reemplazar. Dos botones: **Solo guardar** (queda listo para enviarlo despues) y
-**Guardar y enviar**.
+Para un día suelto que se te olvidó marcar. Trae ayer y 09:00 a 18:00; se puede cambiar todo.
+Avisa si cae en fin de semana, bloquea fechas futuras y días ya enviados. **Solo guardar** lo
+deja para después; **Guardar y enviar** lo manda en el momento.
 
-### 3. Varios dias
+### 3. Varios días
 
-Independiente de la jornada de hoy: aca **solo se generan dias anteriores a hoy**. El
-selector de fechas no deja elegir hoy ni el futuro.
-
-La lista **empieza siempre vacia**. Se elige el intervalo que quieras, del largo que sea, y al
-darle a **Generar** se crean todos los dias de lunes a viernes con **09:00 a 18:00**, se
-guardan en `localStorage` y aparecen en la lista, ya seleccionados. Desde ahi se revisa, se
-corrige lo que haga falta y se envia todo de una vez.
-
-No hay mas validaciones: se puede generar el mismo rango otra vez y los dias se rehacen.
-Lo unico que no se toca son los **dias ya enviados**, para no duplicar respuestas en el
-formulario. Cuando un dia se rehace se conserva lo que hubieras escrito en su observacion.
-Los dias que no correspondan se corrigen o simplemente no se seleccionan al enviar.
-
-«Vaciar lista» solo limpia la vista; los dias siguen guardados.
-
-El unico tope es de 500 dias habiles por intervalo, para atajar un error de tipeo en el anio.
+Se elige solo un intervalo, del largo que sea, y **solo fechas anteriores a hoy**: el
+calendario no permite hoy ni el futuro. Al generar se crean todos los días de lunes a viernes
+con 09:00 a 18:00 y se reemplaza el lote anterior. Los días que ya están en el historial se
+excluyen para no enviar dos veces lo mismo. Cada día se puede corregir antes de enviar.
 
 ### 4. Enviados
 
-Historial de lo confirmado por Google: fecha, dia, entrada, salida, jornada, observacion,
-estado y **fecha y hora de envio**. Con buscador y el total de horas acumuladas.
+El historial: fecha, día, entrada, salida, jornada, observación y cuándo se envió. Con
+buscador y el total de horas.
 
-### 5. Configuracion
+### 5. Configuración
 
-Nombre completo, DNI y URL del formulario: lo que se envia en todos los registros. El DNI se
-muestra enmascarado con un ojo para revelarlo, y la URL tiene un boton para abrir el
-formulario. Guardar queda deshabilitado si no hay cambios o si algo no es valido.
+Nombre y URL del formulario. El DNI se muestra enmascarado y no se puede cambiar, porque es
+tu identificador de sesión. También indica si estás sobre Supabase o en memoria, y permite
+cerrar la sesión de este dispositivo.
 
-Abajo, el manejo de tus datos:
+## Qué se rechaza y qué solo se avisa
 
-- **Exportar JSON** — baja todo (configuracion, historial de enviados y bitacora) como
-  `asistencia-AAAA-MM-DD.json`. Es tu unica copia fuera del navegador.
-- **Importar JSON** — reemplaza todo lo de este navegador con el archivo. Si el archivo no
-  sirve, dice por que y no toca nada.
-- **Borrar todo** — con confirmacion en el sitio. Borra tambien el historial de enviados.
+Lo único que se rechaza es una hora que no se pueda interpretar (`abc`, `25:00`). Formatos
+válidos: `09:20`, `9:20`, `9:20 AM`, `6:25 PM`, `18:25`.
 
-El mismo archivo se puede importar desde la pantalla de bienvenida cuando el navegador esta
-vacio.
+Todo lo demás se acepta y, si parece un descuido, solo se avisa: entrada y salida iguales,
+salida anterior a la entrada, jornadas de más de 14 h o de menos de 1 h. Antes de enviar, el
+modal muestra exactamente lo que va a salir.
 
-### Campos de fecha y hora
+Lo que sí se impide, para no ensuciar el formulario: enviar un día futuro, uno incompleto o
+uno que ya está en el historial.
 
-Se usan los pickers de Material UI (`@mui/x-date-pickers`): calendario para las fechas y
-reloj de 24 h para las horas, con los limites ya aplicados (por ejemplo, en «Varios dias» los
-dias de hoy en adelante salen deshabilitados en el calendario). Los componentes
-`CampoFecha` y `CampoHora` envuelven los pickers y hacia afuera hablan en texto
-(`YYYY-MM-DD` y `HH:MM`), asi el dominio sigue sin depender de ninguna libreria de fechas.
+## Móvil
 
-### Horas por defecto
+Las tablas se convierten en tarjetas por debajo de 900 px, los diálogos se abren a pantalla
+completa por debajo de 600 px, y el reloj sigue siendo el elemento dominante.
 
-Son fijas para todo: **09:00 a 18:00**. No hay horario configurable; si un dia concreto fue
-distinto, se corrige a mano en ese dia.
-
-### Estados
-
-Que un dia este enviado **no es un estado**: es el almacen donde vive. De un registro solo
-importa si esta completo:
-
-| | Que significa |
-|---|---|
-| sin horas | Todavia no tiene ninguna hora. |
-| incompleto | Tiene una sola: falta la otra y no se puede enviar. |
-| completo | Tiene las dos y se puede enviar. |
-
-Las tablas no muestran columna de estado: en «Varios dias» todas las filas estan igual y en
-«Enviados» todas estan enviadas, asi que era ruido.
-
-### Que se rechaza y que solo se avisa
-
-**El panel no decide cuando marcas ni que horas pones.** Lo unico que rechaza es una hora
-que no se pueda entender:
-
-- `abc` o `25:00` → error, no se guarda.
-- Formatos aceptados: `09:20`, `9:20`, `9:20 AM`, `6:25 PM`, `18:25`.
-
-Todo lo demas se acepta y, si parece un descuido, **solo se avisa sin bloquear**:
-
-- Entrada y salida a la misma hora.
-- Salida anterior a la entrada (se cuenta como jornada que cruza la medianoche).
-- Jornadas de mas de 14 h o de menos de 1 h.
-
-Antes de enviar, el modal de confirmacion muestra **exactamente** lo que va a salir (fecha,
-entrada, salida y observacion de cada registro) para que decidas. Si algo no cuadra, se
-cancela y se corrige con el lapiz.
-
-Lo que si se impide, para no ensuciar el formulario: enviar un dia futuro, uno incompleto o
-uno ya enviado.
-
-## Movil
-
-Probado a 375x812, sin desborde horizontal:
-
-- Las tablas se convierten en **tarjetas** por debajo de 900 px.
-- El reloj y las horas marcadas reducen su tamano pero siguen siendo el elemento dominante.
-- Los dialogos (corregir horas, confirmar envio) se abren a **pantalla completa**.
-- La bitacora reduce su alto y apila el filtro.
-
-## Validaciones del servidor
-
-Ademas de las del panel, el servidor vuelve a validar todo lo que llega:
-
-- Nombre no vacio y DNI de 8 digitos.
-- La URL tiene que ser de Formularios de Google.
-- No se envian dias futuros ni dias sin horas.
-- Un envio a la vez por cliente, y como maximo 3 simultaneos en todo el servidor.
-
-## Estructura del proyecto
-
-```
-panel/src/          panel React (Material UI) — ver «Arquitectura» arriba
-servidor/api.js     2 rutas: POST /api/enviar y GET /api/trabajo?cliente=x
-src/
-  lote.js             recorre los registros del envio y los manda
-  formulario.js       lee y llena los campos del Formulario de Google
-  navegador.js        Chromium efimero via Playwright
-```
+El tema define los dos esquemas de color en un solo objeto y usa variables CSS, así que el
+modo claro u oscuro sale del sistema operativo sin JavaScript y sin parpadeo al cargar.
 
 ## Desplegar
 
-**No funciona en Netlify, Vercel estatico, GitHub Pages ni similares.** El envio lo hace
-Playwright con un Chromium de verdad, y eso necesita un servidor que ejecute Node con un
-navegador instalado. Un hosting de archivos estaticos no puede correrlo.
+Es una aplicación Next normal: sirve Vercel, Netlify, Railway, Render o un contenedor.
+No necesita navegador ni binarios: el envío son dos peticiones HTTP.
 
-Donde si funciona:
+Variables de entorno en producción: `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY`.
 
-| Opcion | Notas |
-|---|---|
-| Tu propia maquina | Lo mas simple: `npm start` y lo usas en `localhost`. Cero configuracion. |
-| Railway / Render / Fly.io | Contenedores con Node. Hay que instalar el navegador con sus dependencias del sistema. |
-| Un VPS (Hetzner, DigitalOcean…) | Igual que arriba, con control total. |
+## Sobre la seguridad
 
-En cualquier servidor Linux:
+**El DNI es la única credencial.** Cualquiera que conozca un DNI registrado entra a esa cuenta
+y ve sus registros. Es una decisión tomada a propósito para un uso entre dos personas, no un
+descuido, pero conviene tenerla presente:
 
-```bash
-npm ci
-npx playwright install --with-deps chromium   # el navegador y sus librerias del sistema
-npm run build
-HOST=0.0.0.0 PUERTO=8080 npm start
-```
-
-Por defecto el servidor escucha solo en `127.0.0.1`, o sea que **de fabrica no es accesible
-desde fuera de la maquina**. Para exponerlo hay que pasar `HOST=0.0.0.0` a proposito.
-
-### Antes de exponerlo, leer esto
-
-El panel **no tiene autenticacion**, y la URL del formulario la manda el navegador. Si lo
-dejas accesible en internet, cualquiera que lo encuentre puede usar tu servidor para enviar
-respuestas a **cualquier** Formulario de Google. Los datos de cada usuario estan aislados
-(cada uno en su localStorage), pero la capacidad de enviar no lo esta.
-
-Si lo vas a exponer, al menos una de estas:
-
-- Ponerlo detras de una VPN o de tu red privada.
-- Un proxy con contrasena delante (nginx con auth basica, Cloudflare Access).
-- Limitar en `iniciarEnvio` los `formUrl` aceptados a una lista fija.
-
-## Si algun dia lo quieres sin servidor
-
-Se puede, con un costo. El navegador puede hacer un `POST` directo a
-`https://docs.google.com/forms/d/e/<ID>/formResponse` y Google registra la respuesta: eso
-convierte el proyecto en React puro, desplegable en Netlify, sin Playwright ni backend.
-
-Los parametros de este formulario, verificados interceptando su propio envio:
-
-```
-entry.2136858762          NOMBRE COMPLETO
-entry.1850875709          DNI
-entry.816466622_year      FECHA (año)
-entry.816466622_month     FECHA (mes)
-entry.816466622_day       FECHA (dia)
-entry.346565588_hour      INGRESO (hora, en formato 24 h)
-entry.346565588_minute    INGRESO (minuto)
-entry.592653081_hour      SALIDA (hora, en formato 24 h)
-entry.592653081_minute    SALIDA (minuto)
-entry.1484709239          OBSERVACION
-```
-
-El costo: por las reglas del navegador, una peticion a otro dominio se manda pero **no se
-puede leer la respuesta**. La app perderia la confirmacion de que Google acepto cada
-registro; el estado pasaria a «enviado sin confirmar» y habria que mirar la hoja de
-respuestas para estar seguro.
-
-Un detalle a verificar con un envio real antes de confiar: que la hora de salida viaje en
-formato 24 h (`18` para las 6 PM). Si se manda `06`, la respuesta quedaria registrada a las
-6 de la mañana.
-
-## Si algo falla
-
-- **«la URL del formulario no parece de Formularios de Google»** — revisa que sea el enlace
-  `/viewform`.
-- **«el formulario pide permiso»** — el formulario no es publico con ese enlace.
-- **FALLO sin confirmacion** — Playwright apreto Enviar pero no vio la pantalla de respuesta
-  registrada. Queda una captura en `capturas/` para mirar que se ve en la pagina.
-- **«el servidor esta ocupado con otros envios»** — hay 3 envios corriendo a la vez; espera
-  un minuto.
-- **Un dia no se marco como enviado** — el panel solo marca los que Google confirmo. Revisa
-  el registro y las respuestas del formulario antes de reintentar, para no duplicar.
-
-## Nota
-
-`mis-datos*.json` contiene tu nombre y tu DNI en texto plano. Esta en `.gitignore`: no lo
-subas a ningun repositorio. En el servidor no queda ningun dato personal — los archivos
-temporales de `.trabajos/` se borran al terminar cada envio.
+- No dejes la aplicación en una URL pública y adivinable.
+- La clave `service_role` da acceso total a la base: va solo en el servidor, nunca en el
+  navegador, y no se sube al repositorio.
+- Cuando haga falta abrirlo a más gente, el cambio natural es usar Supabase Auth y reemplazar
+  `lib/api/session-service.js`, sin tocar el resto.
