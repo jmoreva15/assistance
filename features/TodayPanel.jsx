@@ -156,7 +156,7 @@ export default function TodayPanel({ draft, submitted, profile, form, busy, acti
               onSubmit([{ ...record, note }], 'today');
             }}
           >
-            Registrar asistencia
+            Enviar
           </Button>
         </>
       )}

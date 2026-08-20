@@ -58,7 +58,7 @@ export default function MissingClockInDialog({ open, onClose, onConfirm }) {
       <DialogActions>
         <Button onClick={onClose}>Cancelar</Button>
         <Button variant="contained" disabled={!valid} onClick={() => onConfirm(clockIn)} autoFocus>
-          Registrar asistencia
+          Guardar
         </Button>
       </DialogActions>
     </Dialog>

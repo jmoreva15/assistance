@@ -181,7 +181,7 @@ El historial. Solo se escribe cuando Google confirma.
 
 ### `activity_log`
 
-La bitácora: qué acción, con qué detalle y cuándo.
+Los logs: qué acción, con qué detalle y cuándo.
 
 Las cuatro tablas tienen **RLS activado y sin política que permita nada** a las claves
 públicas. El acceso es solo desde el servidor con la clave `service_role`, así que ni el

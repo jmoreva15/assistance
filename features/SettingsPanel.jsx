@@ -84,7 +84,7 @@ export default function SettingsPanel({ user, formUrl, busy, actions }) {
                 disabled={!dirty || !valid || busy}
                 onClick={() => actions.updateProfile({ fullName })}
               >
-                {dirty ? 'Guardar cambios' : 'Sin cambios'}
+                Guardar
               </Button>
             </Stack>
           </Stack>

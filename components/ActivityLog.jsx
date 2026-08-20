@@ -40,7 +40,7 @@ export default function ActivityLog({ entries }) {
         sx={{ px: 1.5, py: 1, borderBottom: 1, borderColor: 'divider' }}
       >
         <Stack direction="row" spacing={1.5} alignItems="center">
-          <Typography variant="h6">Bitacora</Typography>
+          <Typography variant="h6">Logs</Typography>
           <Chip variant="outlined" label={`${entries.length} lineas`} />
         </Stack>
         <Box sx={{ flex: 1 }} />

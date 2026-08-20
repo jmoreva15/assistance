@@ -2,7 +2,6 @@
 
 import { Box, ButtonBase, Stack, Tooltip, IconButton, Typography } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import TouchAppIcon from '@mui/icons-material/TouchApp';
 import { InlineTime } from './fields.jsx';
 import { MONO } from '../lib/theme/theme.js';
@@ -29,10 +28,10 @@ export default function PunchCard({ label, time, icon, onPunch, onEdit, onRestam
           </Typography>
         ) : (
           <Stack direction="row" spacing={0.5} alignItems="center">
-            <InlineTime value={time} onCommit={onEdit} width={132} size={40} align="center" />
+            <InlineTime value={time} onCommit={onEdit} width={168} size={38} align="center" />
             <Tooltip title="volver a marcar con la hora actual">
-              <IconButton size="small" onClick={onRestamp} sx={{ mt: 0.5 }}>
-                <RestartAltIcon sx={{ fontSize: 17 }} />
+              <IconButton size="small" color="primary" onClick={onRestamp} sx={{ mt: 0.5 }}>
+                <TouchAppIcon sx={{ fontSize: 19 }} />
               </IconButton>
             </Tooltip>
           </Stack>

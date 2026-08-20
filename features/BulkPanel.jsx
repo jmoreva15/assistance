@@ -102,7 +102,7 @@ export default function BulkPanel({ today, draft, submittedDates, busy, actions,
                 Generados ({rows.length})
               </Typography>
               <Button startIcon={<DoneAllIcon />} onClick={() => setSelected(new Set(allowedDates))} disabled={!allowedDates.length}>
-                Seleccionar todos
+                Todos
               </Button>
               <Button startIcon={<DeleteOutlineIcon />} onClick={remove} disabled={busy}>
                 Borrar
@@ -115,7 +115,7 @@ export default function BulkPanel({ today, draft, submittedDates, busy, actions,
                 disabled={!chosen.length || busy}
                 onClick={() => onSubmit(chosen, 'bulk')}
               >
-                Registrar {chosen.length ? `(${chosen.length})` : 'asistencia'}
+                Enviar {chosen.length ? `(${chosen.length})` : ''}
               </Button>
             </Stack>
           </Paper>

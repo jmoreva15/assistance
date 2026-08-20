@@ -104,8 +104,8 @@ export default function Page() {
 
       <ConfirmDialog
         open={!!pending}
-        title="Registrar asistencia"
-        confirmLabel={`Registrar ${pending?.records.length ?? 0}`}
+        title="Enviar al formulario"
+        confirmLabel="Enviar"
         color="error"
         onClose={() => setPending(null)}
         onConfirm={() => {
