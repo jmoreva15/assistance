@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import {
   Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack, Typography, useMediaQuery, useTheme,
 } from '@mui/material';
-import { TimePickerField } from './fields.jsx';
+import { TimeInput } from './fields.jsx';
 import { currentTime, parseTime } from '../lib/domain/time.js';
 import { DEFAULT_CLOCK_IN, timeNotice, validateTimeFormat } from '../lib/domain/records.js';
 
@@ -41,7 +41,7 @@ export default function MissingClockInDialog({ open, onClose, onConfirm }) {
           <Typography variant="body2" color="text.secondary">
             No habias marcado la entrada de hoy. La salida se registra ahora, a las <strong>{now}</strong>.
           </Typography>
-          <TimePickerField
+          <TimeInput
             label="Hora de entrada"
             value={clockIn}
             onChange={(value) => setClockIn(value || '')}

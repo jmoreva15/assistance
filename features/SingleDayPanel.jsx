@@ -1,10 +1,9 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Alert, Button, Card, CardContent, Stack, TextField, Typography } from '@mui/material';
-import EventAvailableIcon from '@mui/icons-material/EventAvailable';
+import { Alert, Button, Card, CardContent, Stack, TextField } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
-import { DateField, TimePickerField } from '../components/fields.jsx';
+import { DateField, TimeInput } from '../components/fields.jsx';
 import { DEFAULT_CLOCK_IN, DEFAULT_CLOCK_OUT, timeNotice, validateTimeFormat } from '../lib/domain/records.js';
 import { addDays, formatLongDate, isWeekend, parseTime, weekdayName } from '../lib/domain/time.js';
 
@@ -35,12 +34,7 @@ export default function SingleDayPanel({ today, submittedDates, busy, onSubmit }
   return (
     <Card variant="outlined">
       <CardContent>
-        <Stack direction="row" spacing={1} alignItems="center">
-          <EventAvailableIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
-          <Typography variant="h6">Se me olvido un dia</Typography>
-        </Stack>
-
-        <Stack spacing={3} sx={{ mt: 3 }}>
+        <Stack spacing={3}>
           <DateField
             label="Fecha"
             value={date}
@@ -51,8 +45,8 @@ export default function SingleDayPanel({ today, submittedDates, busy, onSubmit }
           />
 
           <Stack direction="row" spacing={2}>
-            <TimePickerField label="Entrada" value={clockIn} onChange={(value) => setClockIn(value || '')} />
-            <TimePickerField label="Salida" value={clockOut} onChange={(value) => setClockOut(value || '')} />
+            <TimeInput label="Entrada" value={clockIn} onChange={(value) => setClockIn(value || '')} />
+            <TimeInput label="Salida" value={clockOut} onChange={(value) => setClockOut(value || '')} />
           </Stack>
 
           <TextField

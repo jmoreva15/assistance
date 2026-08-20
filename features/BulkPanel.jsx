@@ -12,7 +12,7 @@ import NotesIcon from '@mui/icons-material/Notes';
 import SendIcon from '@mui/icons-material/Send';
 import { DateField, InlineTime } from '../components/fields.jsx';
 import ObservationDialog from '../components/ObservationDialog.jsx';
-import { DEFAULT_CLOCK_IN, DEFAULT_CLOCK_OUT, buildBatch, isSubmittable } from '../lib/domain/records.js';
+import { buildBatch, isSubmittable } from '../lib/domain/records.js';
 import { addDays, formatDuration, formatShortDate, weekdaysBetween, workedMinutes } from '../lib/domain/time.js';
 
 export default function BulkPanel({ today, draft, submittedDates, busy, actions, onSubmit }) {
@@ -65,15 +65,7 @@ export default function BulkPanel({ today, draft, submittedDates, busy, actions,
     <Stack spacing={2.5}>
       <Card variant="outlined">
         <CardContent>
-          <Stack direction="row" spacing={1} alignItems="center">
-            <AutoAwesomeMotionIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
-            <Typography variant="h6">Se me olvido varios dias</Typography>
-          </Stack>
-          <Typography variant="caption" color="text.secondary">
-            Dias de lunes a viernes con {DEFAULT_CLOCK_IN} a {DEFAULT_CLOCK_OUT}. Solo fechas anteriores a hoy.
-          </Typography>
-
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mt: 3 }} alignItems={{ sm: 'flex-start' }}>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ sm: 'flex-start' }}>
             <DateField label="Desde" value={from} onChange={setFrom} max={yesterday} />
             <DateField label="Hasta" value={to} onChange={setTo} max={yesterday} min={from} />
             <Button
@@ -99,7 +91,7 @@ export default function BulkPanel({ today, draft, submittedDates, busy, actions,
       {!rows.length ? (
         <Paper variant="outlined" sx={{ p: 5, textAlign: 'center' }}>
           <Typography variant="body2" color="text.secondary">
-            Elige un intervalo y dale a <strong>Generar</strong>.
+            Elige el intervalo y dale a <strong>Generar</strong>.
           </Typography>
         </Paper>
       ) : (

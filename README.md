@@ -189,7 +189,17 @@ navegador ni un tercero pueden leer las tablas directamente.
 
 ## Las cinco pestañas
 
-### 1. Mi jornada
+La navegación tiene **tres pestañas y un engranaje**, para que lo de todos los días esté
+primero y el resto no compita con él:
+
+```
+Hoy   |   Dias pasados   |   Enviados (N)   |   ⚙
+```
+
+«Un día» y «Varios días» viven dentro de **Días pasados**, elegibles con un selector de dos
+botones. Configuración es solo un engranaje al final.
+
+### 1. Hoy
 
 El día de hoy, un reloj en tiempo real y dos tarjetas grandes que se marcan con un clic.
 
@@ -204,12 +214,10 @@ El día de hoy, un reloj en tiempo real y dos tarjetas grandes que se marcan con
   títulos no están escritos en el código: se leen del formulario (`GET /api/form`, con caché de
   5 minutos), así que si cambias una pregunta, la vista previa lo refleja. Si algún campo no se
   puede emparejar, avisa ahí mismo en vez de fallar al enviar.
-- **Las horas se corrigen ahí mismo**: se toca la hora marcada y se edita en el sitio, sin
-  abrir nada. Corregir no impide seguir marcando en vivo.
 - **Si marcaste y nunca enviaste, al día siguiente se descarta** y la pantalla arranca en cero.
   Queda anotado en la bitácora. Lo de «Un día» y «Varios días» no se descarta.
 
-### 2. Un día
+### 2. Días pasados → Un día
 
 Para un día suelto que se te olvidó marcar. Trae ayer y 09:00 a 18:00; se puede cambiar todo.
 Avisa si cae en fin de semana, bloquea fechas futuras y días ya enviados.
@@ -224,9 +232,9 @@ calendario no permite hoy ni el futuro. Al generar se crean todos los días de l
 con 09:00 a 18:00 y se reemplaza el lote anterior. Los días que ya están en el historial se
 excluyen para no enviar dos veces lo mismo.
 
-**Cada día se edita en la propia fila**: las horas son campos editables en el sitio y se
-guardan al cambiarlas, sin abrir ventanas. La observación es lo único que abre un cuadro
-pequeño, porque es texto largo. Funciona igual en tabla (escritorio) y en tarjetas (móvil).
+**Cada día se edita en la propia fila**: las horas se escriben y se guardan al cambiarlas, sin
+abrir ventanas. La observación es lo único que abre un cuadro pequeño, porque es texto largo.
+Funciona igual en tabla (escritorio) y en tarjetas (móvil).
 
 Botones: **Seleccionar todos**, **Borrar** (descarta el lote) y **Enviar**.
 
@@ -235,7 +243,7 @@ Botones: **Seleccionar todos**, **Borrar** (descarta el lote) y **Enviar**.
 El historial: fecha, día, entrada, salida, jornada, observación y cuándo se envió. Con
 buscador y el total de horas.
 
-### 5. Configuración
+### 5. Configuración (engranaje)
 
 Solo el nombre se puede cambiar. El DNI se muestra enmascarado y es fijo, porque es tu
 identificador de sesión; el formulario también, porque es el mismo para todos. Debajo, un

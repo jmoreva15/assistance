@@ -1,19 +1,19 @@
 'use client';
 
-import { Box, ButtonBase, Stack, Typography } from '@mui/material';
+import { Box, ButtonBase, Stack, Tooltip, IconButton, Typography } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import TouchAppIcon from '@mui/icons-material/TouchApp';
 import { InlineTime } from './fields.jsx';
 import { MONO } from '../lib/theme/theme.js';
 
-export default function PunchCard({ label, time, icon, onPunch, onEdit, locked, hint }) {
+export default function PunchCard({ label, time, icon, onPunch, onEdit, onRestamp, locked }) {
   const marked = !!time;
-  const punchable = !marked && !locked;
 
   const heading = (
     <Stack direction="row" spacing={0.75} alignItems="center" sx={{ color: marked ? 'success.main' : 'text.secondary' }}>
-      {marked ? <CheckCircleIcon sx={{ fontSize: 16 }} /> : icon}
-      <Typography variant="caption" sx={{ textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700 }}>
+      {marked ? <CheckCircleIcon sx={{ fontSize: 15 }} /> : icon}
+      <Typography variant="caption" sx={{ textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700 }}>
         {label}
       </Typography>
     </Stack>
@@ -21,44 +21,36 @@ export default function PunchCard({ label, time, icon, onPunch, onEdit, locked, 
 
   if (marked) {
     return (
-      <Stack alignItems="center" spacing={0.5} sx={{ flex: 1, minWidth: 0, py: { xs: 2.5, sm: 3 }, px: 2 }}>
+      <Stack alignItems="center" spacing={1} sx={{ flex: 1, minWidth: 0, py: { xs: 2.5, sm: 3 }, px: 2 }}>
         {heading}
         {locked ? (
-          <Typography sx={{ fontFamily: MONO, fontSize: { xs: 38, sm: 46 }, lineHeight: 1.1, fontVariantNumeric: 'tabular-nums' }}>
+          <Typography sx={{ fontFamily: MONO, fontSize: { xs: 40, sm: 46 }, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
             {time}
           </Typography>
         ) : (
-          <InlineTime value={time} onCommit={onEdit} width={200} size={40} align="center" />
+          <Stack direction="row" spacing={0.5} alignItems="center">
+            <InlineTime value={time} onCommit={onEdit} width={132} size={40} align="center" />
+            <Tooltip title="volver a marcar con la hora actual">
+              <IconButton size="small" onClick={onRestamp} sx={{ mt: 0.5 }}>
+                <RestartAltIcon sx={{ fontSize: 17 }} />
+              </IconButton>
+            </Tooltip>
+          </Stack>
         )}
-        <Typography variant="caption" color="text.secondary">
-          {locked ? hint : 'toca la hora para corregirla'}
-        </Typography>
       </Stack>
     );
   }
 
-  const content = (
-    <Stack alignItems="center" spacing={0.5} sx={{ width: '100%', py: { xs: 2.5, sm: 3 }, px: 2 }}>
-      {heading}
-      <Typography sx={{ fontFamily: MONO, fontSize: { xs: 38, sm: 46 }, lineHeight: 1.1, color: 'text.disabled' }}>
-        --:--
-      </Typography>
-      {punchable ? (
-        <Stack direction="row" spacing={0.5} alignItems="center" sx={{ color: 'primary.main' }}>
-          <TouchAppIcon sx={{ fontSize: 15 }} />
-          <Typography variant="caption" sx={{ fontWeight: 700 }}>
-            TOCA PARA MARCAR
-          </Typography>
-        </Stack>
-      ) : (
-        <Typography variant="caption" color="text.secondary">
-          {hint}
+  if (locked) {
+    return (
+      <Stack alignItems="center" spacing={1} sx={{ flex: 1, minWidth: 0, py: { xs: 2.5, sm: 3 }, px: 2, opacity: 0.5 }}>
+        {heading}
+        <Typography sx={{ fontFamily: MONO, fontSize: { xs: 40, sm: 46 }, lineHeight: 1, color: 'text.disabled' }}>
+          --:--
         </Typography>
-      )}
-    </Stack>
-  );
-
-  if (!punchable) return <Box sx={{ flex: 1, minWidth: 0, opacity: 0.55 }}>{content}</Box>;
+      </Stack>
+    );
+  }
 
   return (
     <ButtonBase
@@ -71,7 +63,14 @@ export default function PunchCard({ label, time, icon, onPunch, onEdit, locked, 
         '&:active': { transform: 'scale(0.985)' },
       }}
     >
-      {content}
+      <Stack alignItems="center" spacing={1} sx={{ width: '100%', py: { xs: 2.5, sm: 3 }, px: 2 }}>
+        {heading}
+        <Stack direction="row" spacing={0.75} alignItems="center" sx={{ color: 'primary.main' }}>
+          <TouchAppIcon sx={{ fontSize: 26 }} />
+          <Typography sx={{ fontSize: 22, fontWeight: 600 }}>Marcar</Typography>
+        </Stack>
+        <Box sx={{ height: 18 }} />
+      </Stack>
     </ButtonBase>
   );
 }

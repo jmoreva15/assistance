@@ -2,8 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { Alert, Box, Chip, Container, Divider, Snackbar, Stack, Tab, Tabs, Typography } from '@mui/material';
-import AutoAwesomeMotionIcon from '@mui/icons-material/AutoAwesomeMotion';
-import EventAvailableIcon from '@mui/icons-material/EventAvailable';
+import HistoryIcon from '@mui/icons-material/History';
 import InventoryIcon from '@mui/icons-material/Inventory';
 import ScheduleIcon from '@mui/icons-material/Schedule';
 import SettingsIcon from '@mui/icons-material/Settings';
@@ -11,10 +10,9 @@ import ActivityLog from '../components/ActivityLog.jsx';
 import AppSkeleton from '../components/AppSkeleton.jsx';
 import TopProgress from '../components/TopProgress.jsx';
 import ConfirmDialog from '../components/ConfirmDialog.jsx';
-import BulkPanel from '../features/BulkPanel.jsx';
+import PastDaysPanel from '../features/PastDaysPanel.jsx';
 import SettingsPanel from '../features/SettingsPanel.jsx';
 import SignIn from '../features/SignIn.jsx';
-import SingleDayPanel from '../features/SingleDayPanel.jsx';
 import SubmittedPanel from '../features/SubmittedPanel.jsx';
 import TodayPanel from '../features/TodayPanel.jsx';
 import { useAttendance } from '../lib/client/use-attendance.js';
@@ -65,15 +63,13 @@ export default function Page() {
         <Tabs
           value={tab}
           onChange={(_, value) => setTab(value)}
-          variant="scrollable"
-          scrollButtons={false}
+          variant="fullWidth"
           sx={{ borderBottom: 1, borderColor: 'divider' }}
         >
-          <Tab icon={<ScheduleIcon sx={{ fontSize: 17 }} />} iconPosition="start" label="Mi jornada" />
-          <Tab icon={<EventAvailableIcon sx={{ fontSize: 17 }} />} iconPosition="start" label="Un dia" />
-          <Tab icon={<AutoAwesomeMotionIcon sx={{ fontSize: 17 }} />} iconPosition="start" label="Varios dias" />
-          <Tab icon={<InventoryIcon sx={{ fontSize: 17 }} />} iconPosition="start" label={`Enviados (${submittedCount})`} />
-          <Tab icon={<SettingsIcon sx={{ fontSize: 17 }} />} iconPosition="start" label="Configuracion" />
+          <Tab icon={<ScheduleIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="Hoy" />
+          <Tab icon={<HistoryIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="Dias pasados" />
+          <Tab icon={<InventoryIcon sx={{ fontSize: 18 }} />} iconPosition="start" label={`Enviados (${submittedCount})`} />
+          <Tab icon={<SettingsIcon sx={{ fontSize: 18 }} />} aria-label="Configuracion" sx={{ minWidth: 56, flex: '0 0 auto' }} />
         </Tabs>
 
         {tab === 0 && (
@@ -88,10 +84,7 @@ export default function Page() {
           />
         )}
         {tab === 1 && (
-          <SingleDayPanel today={today} submittedDates={submittedDates} busy={busy} onSubmit={askSubmit} />
-        )}
-        {tab === 2 && (
-          <BulkPanel
+          <PastDaysPanel
             today={today}
             draft={drafts.bulk}
             submittedDates={submittedDates}
@@ -100,17 +93,13 @@ export default function Page() {
             onSubmit={askSubmit}
           />
         )}
-        {tab === 3 && <SubmittedPanel submissions={workspace.submissions} />}
-        {tab === 4 && (
+        {tab === 2 && <SubmittedPanel submissions={workspace.submissions} />}
+        {tab === 3 && (
           <SettingsPanel user={workspace.user} formUrl={workspace.formUrl} busy={busy} actions={actions} />
         )}
 
         <ActivityLog entries={activity} />
 
-        <Divider />
-        <Typography variant="caption" color="text.secondary">
-          Cada seccion guarda su propio borrador. Lo unico que se acumula son los enviados.
-        </Typography>
       </Stack>
 
       <ConfirmDialog
